@@ -107,6 +107,10 @@ instance Applicative Matrix where
 		where
 			f ind x = (mGet ind matrF) x
 		--[ [ (mGet (indexRow,indexCol) matrF $ (mGet (indexRow,indexCol) matrVal)) | indexCol <- (mGetAllIndexCol matrVal) ] | indexRow <- (mGetAllIndexRow matrVal)]
+{-
+instance Show t => Show (Matrix t) where
+	show = showMatr
+-}
 
 -- |fmap allows to map a function over a 'Foldable'
 -- but the function does not know the position of the element it is applied on.
@@ -125,9 +129,18 @@ mFromListRow listLines = if not (isValid listLines)
 	then fail "wrong input formatwrong input format!"
 	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
 	where
-		isValid listLines = foldl (\x y -> x && (length y==width)) True listLines
-		height = length listLines
-		width = length $ listLines !! 0
+		isValid listLines =
+			foldl (\x y -> x && (length y==width)) True listLines
+
+		(width,height) = if isJust (Data.List.find (==0) [width',height'])
+			then (0,0)
+			else (width',height')
+		height' = length listLines
+		width' = if height' == 0 then 0 else 
+			length $ listLines !! 0
+
+showMatr :: (Show a) => Matrix a -> String
+showMatr matr = unlines $ [foldl (++) "" $ mGetRow iRow (fmap show matr) | iRow <- mGetAllIndexRow matr]
 {-
 m :: [[t]] -> Maybe (Matrix t)
 m listLines = if (isValid listLines)
