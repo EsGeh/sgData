@@ -1,14 +1,15 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
 module SGData.MatrixTS(
 	-- * Types
 	Matrix(),
 	-- ** type aliases for indexes and width or height
 	MatrIndex,IndexRow,IndexCol,MatrSize,Width,Height,
 	-- * Matrix Pseudo Constructors
-	m,
+	m, mFromListRow,
 	-- * Getter
-	mGet,mGetHeight,mGetWidth,
+	mGet,
+	mGetSize, mGetHeight,mGetWidth,
 	-- ** Lists of Indices
 	mGetAllIndexRow,mGetAllIndexCol,mGetAllIndex,
 	-- ** Monadic Getters
@@ -27,8 +28,8 @@ module SGData.MatrixTS(
 --import Util.Vector2D
 --import Text
 
-import Card.Card
-import Card.Unary
+import SGCard.Card
+import SGCard.Unary
 import SGData.Vector2D
 
 import Data.Foldable hiding(concat,toList)
@@ -112,20 +113,24 @@ mapWithIndex :: (Card countRow,Card countCol) =>
 	(MatrIndex -> a -> b) -> Matrix countRow countCol a -> Matrix countRow countCol b
 mapWithIndex f mat = m (mGetSizeTS mat) (\index -> f index (mGet index mat))
 
--- |creates a matrix from a list of lines. The result is packed into Maybe, because the input might be invalid
 m :: (Card countRow, Card countCol) => (countRow,countCol) -> (MatrIndex -> t) -> Matrix countRow countCol t
 m size' f = M $ array ((0,0),size |-| (1,1)) [ (ind, f ind) | ind <- allIndices ]
 	where
 		allIndices = [ (row,col) | row <-[0..(vecX size -1)], col <- [0..(vecY size -1)] ]
 		size = (toInt $ vecX size', toInt $ vecY size')
 
-mFromListRow :: (Monad m, Card countRow,Card countCol) => (countRow,countCol) -> [[t]] -> m (Matrix countRow countCol t)
+-- |creates a matrix from a list of lines. The result is packed into Maybe, because the input might be invalid
+mFromListRow :: (Monad m, MatrValidSize countRow countCol) => (countRow,countCol) -> [[t]] -> m (Matrix countRow countCol t)
 mFromListRow (height,width) listLines = if not (isValid listLines)
 	then fail "wrong input format!"
 	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
 	where
 		isValid listLines = foldl (\x y -> x && (length y==widthRT)) True listLines
 		(heightRT,widthRT) = (toInt height, toInt width)
+
+class (Card w, Card h) => MatrValidSize w h
+instance MatrValidSize N0 N0	
+instance (Card w, Card h) => MatrValidSize (Succ w) (Succ h)
 {-
 m :: [[t]] -> Maybe (Matrix t)
 m listLines = if (isValid listLines)

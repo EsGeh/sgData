@@ -126,7 +126,7 @@ m size f = M $ array ((0,0),size |-| (1,1)) [ (ind, f ind) | ind <- allIndices ]
 
 -- |creates a matrix from a list of lines. The function fails, if the input is malformed
 mFromListRow listLines = if not (isValid listLines)
-	then fail "wrong input formatwrong input format!"
+	then fail "wrong input format!"
 	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
 	where
 		isValid listLines =
