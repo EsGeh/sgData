@@ -12,6 +12,9 @@ module SGData.MatrixTS(
 	mGetSize, mGetHeight,mGetWidth,
 	-- ** Lists of Indices
 	mGetAllIndexRow,mGetAllIndexCol,mGetAllIndex,
+	-- ** extract specific parts from the matrix
+	mGetSub,mGetRow,mGetCol,
+	mGetAllRows,mGetAllCols,
 	-- ** Monadic Getters
 	mGetWithOrigin,
 	-- * Setter
@@ -168,16 +171,27 @@ mGetWidth = vecY . mGetSize
 mGet :: MatrIndex -> Matrix countRow countCol t -> t
 mGet index (M array) = array ! index
 
+-- |returns a submatrix
 mGetSub (pos,size) matr = m size (\index -> mGet (index |+| pos) matr)
+-- |returns a row of the matrix as a list
 mGetRow indexRow matr = do
 	indexCol <- mGetAllIndexCol matr
 	let index = (indexRow,indexCol)
 	return $ mGet index matr
+-- |returns a column of the matrix as a list
 mGetCol indexCol matr = do
 	indexRow <- mGetAllIndexRow matr
 	let index = (indexRow,indexCol)
 	return $ mGet index matr
 
+-- |returns a list of all rows in then matrix
+mGetAllRows matr = do
+	indexRow <- mGetAllIndexRow matr
+	return $ mGetRow indexRow matr
+-- |returns a list of all columns in then matrix
+mGetAllCols matr = do
+	indexCol <- mGetAllIndexCol matr
+	return $ mGetCol indexCol matr
 
 --mGetLines (M lines) = lines
 

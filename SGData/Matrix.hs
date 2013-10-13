@@ -14,6 +14,7 @@ module SGData.Matrix(
 	mGetAllIndexRow,mGetAllIndexCol,mGetAllIndex,
 	-- ** extract specific parts from the matrix
 	mGetSub,mGetRow,mGetCol,
+	mGetAllRows,mGetAllCols,
 	-- ** Monadic Getters
 	mGetWithOrigin,
 	-- * Setter
@@ -191,6 +192,14 @@ mGetCol indexCol matr = do
 	indexRow <- mGetAllIndexRow matr
 	let index = (indexRow,indexCol)
 	return $ mGet index matr
+-- |returns a list of all rows in then matrix
+mGetAllRows matr = do
+	indexRow <- mGetAllIndexRow matr
+	return $ mGetRow indexRow matr
+-- |returns a list of all columns in then matrix
+mGetAllCols matr = do
+	indexCol <- mGetAllIndexCol matr
+	return $ mGetCol indexCol matr
 
 
 --mGetLines (M lines) = lines
