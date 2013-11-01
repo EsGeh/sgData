@@ -14,6 +14,7 @@ module SGData.TreeZipper(
 	pathFromZipper,
 	top, leftBottom,
 	up, down, left, right,
+	-- ** apply functions depening on nodes, depending on their context in the tree
 	applyZipperFOnFocusRec,
 	applyZipperFOnFocus,
 	applyZipperFOnAllChildren,
@@ -110,19 +111,18 @@ asLongAsPossible dir z = maybe z (asLongAsPossible dir) $ moveZipper dir z
 	Nothing -> z
 	Just next -> asLongAsPossible dir next -}
 
-
-
+-- | 'applyZipperFOnFocusRec f zipper' recursively applies f to the whole subtree of the node the zipper points to
 applyZipperFOnFocusRec :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnFocusRec f zipper' = applyZipperFOnAllChildren (focus . applyZipperFOnFocusRec f) $ applyZipperFOnFocus f zipper'
 
--- |
+-- | 'applyZipperFOnFocus f zipper' returns a new Zipper, where f has been applied to the node the zipper points to
 applyZipperFOnFocus :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnFocus f zipper' = zipper (newTree,context)
 	where
 		newTree = f zipper'
 		(oldTree,context) = fromZipper zipper'
 
--- |
+-- | 'applyZipperFOnFocus f zipper' returns a new Zipper where f has been applied to all children
 applyZipperFOnAllChildren :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnAllChildren f zipper = case ((down 0 zipper) ) of
 	Nothing -> zipper
