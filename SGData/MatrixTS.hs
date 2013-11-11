@@ -1,5 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
 module SGData.MatrixTS(
 	-- * Types
 	Matrix(),
@@ -35,8 +35,8 @@ import SGCard.Card
 import SGCard.Unary
 import SGData.Vector2D
 
-import Data.Foldable hiding(concat,toList)
-import Data.Foldable as Fold hiding(concat,toList)
+import Data.Foldable(Foldable) -- hiding(concat,toList)
+import qualified Data.Foldable as Fold hiding(sum,concat,toList)
 import Control.Applicative
 import Data.Traversable
 import Data.List hiding(foldl,foldr)
@@ -68,31 +68,47 @@ type Height = Int
 ---------------------------------------------------------------------------------------
 -- instance declarations: -------------------------------------------------------------
 ---------------------------------------------------------------------------------------
--- | show the matrix in a nice table like representation
-{-instance (Show t) => Show (Matrix countRow countCol t) where
-	show m@(M array) = show $ (runRenderMeth $ renderMeth) (0,0) listCol
+class MatrMult a b c | a b -> c where
+	(/*/) :: a -> b -> c
+class MatrAdd a where
+	(/+/) :: a -> a -> a
+
+instance (Card x, Card y, Card z, Num a) => MatrMult (Matrix x y a) (Matrix y z a) (Matrix x z a) where
+	l /*/ r = m (countRow,countCol) $ valFromIndex
 		where
-			renderMeth :: (Show t) => RenderMethod [[t]] TextBlock
-			renderMeth = horizontalWith (filledBlock "|") combPStd (repeat (vertical combPStd (repeat justBlock)))
-			listCol = [ mGetCol indexCol m | indexCol <- mGetAllIndexCol m ]
-	{-show m@(M array) = show $ (runRenderMeth $ renderMeth) (0,0) listCol
+			--valFromIndex :: MatrIndex -> c
+			valFromIndex pos = sum $ zipWith (*) (mGetRow (vecX pos) l) (mGetCol (vecY pos) r)
+			countRow = undefined :: x
+			countCol = undefined :: z 
+instance (Card countRow, Card countCol, Num a) => MatrAdd (Matrix countRow countCol a) where
+	l /+/ r = m (countRow,countCol) $ valFromIndex
 		where
-			renderMeth :: (Show t) => RenderMethod [[t]] TextBlock
-			renderMeth = horizontalWith (filledBlock "|") (repeat (vertical (repeat justBlock)))
-			listCol = [ mGetCol indexCol m | indexCol <- mGetAllIndexCol m ]-}
-			
-		{-concat $ intersperse "\n" $ elems $ fmap (prettyShow " | " ((fromIntegral maxLength)%1) 0 ) $ listLines
-			where
-				maxLength = Fold.maximum $ fmap (length . show) m
-				prettyShow = Pretty.showContainer "" "" " " " " Pretty.LeftJust
-				-}
+			valFromIndex pos = mGet pos l + mGet pos r
+			countRow = undefined :: countRow
+			countCol = undefined :: countCol
+instance (Card dim, Num a) => Num (Matrix dim dim a) where
+	(+) = (/+/) 
+	(*) = (/*/)
+	abs matr = fmap abs matr
+	signum matr = error "undefined"
+	fromInteger val = m dim (fromIntegral . const val)
+		where
+			dim = (undefined :: dim, undefined :: dim)
+
+{-
+det matr = case mGetSize matr of
+	(0,0) -> mGet (0,0) matr
 -}
+
+-- | show the matrix in a simple way
+instance (Show t) => Show (Matrix countRow countCol t) where
+	show = show . mGetAllIndexRow
 -- |enables mapping a function over every element in the matrix
 instance Functor (Matrix countRow countCol) where
 	fmap f (M array) = M $ (fmap f) array
 -- |enables to fold a matrix into a single value
 instance Foldable (Matrix countRow countCol) where
-	foldMap toMonoid (M array) = foldMap toMonoid array
+	foldMap toMonoid (M array) = Fold.foldMap toMonoid array
 {-instance Traversable Matrix where
 	--traverse :: Applicative f => (a -> f b) -> Matrix a -> f (Matrix b)
 	traverse f (M listLines) = traverse (mUnsafe . traverse f) listLines
@@ -128,7 +144,7 @@ mFromListRow (height,width) listLines = if not (isValid listLines)
 	then fail "wrong input format!"
 	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
 	where
-		isValid listLines = foldl (\x y -> x && (length y==widthRT)) True listLines
+		isValid listLines = Fold.foldl (\x y -> x && (length y==widthRT)) True listLines
 		(heightRT,widthRT) = (toInt height, toInt width)
 
 class (Card w, Card h) => MatrValidSize w h
@@ -251,7 +267,7 @@ showLog listOfEntries = foldl conc "" $ map show listOfEntries
 newtype Log logType = Log { getLog :: [logType] }
 	deriving(Monoid)
 instance (Show logType) => Show (Log logType) where
-	show (Log list) = foldl conc "" $ map show list
+	show (Log list) = Fold.foldl conc "" $ map show list
 		where
 			conc "" y = y
 			conc x y = x ++ " -> " ++ y
