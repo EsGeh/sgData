@@ -4,7 +4,7 @@ module SGData.MatrixTS(
 	-- * Types
 	Matrix(),
 	-- ** type aliases for indexes and width or height
-	MatrIndex,IndexRow,IndexCol,MatrSize,Width,Height,
+	TupleIndex,IndexRow,IndexCol,MatrSize,Width,Height,
 	-- * Matrix Pseudo Constructors
 	m, mFromListRow,
 	-- * Getter
@@ -22,10 +22,10 @@ module SGData.MatrixTS(
 	-- * enhanced mapping
 	mapWithIndex,
 	-- * Special Monads (experimental)
-	LogOrigin,
+	{-LogOrigin,
 	Origin(..),
 	WithLog,Log(..),
-	LogVal(..)
+	LogVal(..)-}
 	) where
 --import Card as Unary
 --import Util.Vector2D
@@ -51,17 +51,17 @@ import Data.Array
 import Debug.Trace
 
 -- |a matrix. The constructor is hidden, so it cannot be used directly - use 'm' or 'mUnsafe' instead
-data Matrix countRow countCol t = M (Array MatrIndex t)
+data Matrix i countRow countCol t = M (Array i t)
 	deriving(Traversable) -- don't know how to implement that, so I am using the "deriving" clause, ...
 -- |index to access elements in a matrix
-type MatrIndex = (IndexRow, IndexCol)
+--type MatrIndex = (IndexRow, IndexCol)
+type TupleIndex = (IndexRow, IndexCol)
 type IndexRow = Int
 type IndexCol = Int
 
 type MatrSize = Vec Int
 type Width = Int
 type Height = Int
-
 
 --type Size t = Vec t
 
@@ -73,21 +73,21 @@ class MatrMult a b c | a b -> c where
 class MatrAdd a where
 	(/+/) :: a -> a -> a
 
-instance (Card x, Card y, Card z, Num a) => MatrMult (Matrix x y a) (Matrix y z a) (Matrix x z a) where
+instance (Card x, Card y, Card z, Num a) => MatrMult (Matrix TupleIndex x y a) (Matrix TupleIndex y z a) (Matrix TupleIndex x z a) where
 	l /*/ r = m (countRow,countCol) $ valFromIndex
 		where
 			--valFromIndex :: MatrIndex -> c
 			valFromIndex pos = sum $ zipWith (*) (mGetRow (vecX pos) l) (mGetCol (vecY pos) r)
 			countRow = undefined :: x
 			countCol = undefined :: z 
-instance (Card countRow, Card countCol, Num a) => MatrAdd (Matrix countRow countCol a) where
+instance (Card countRow, Card countCol, Num a) => MatrAdd (Matrix TupleIndex countRow countCol a) where
 	l /+/ r = m (countRow,countCol) $ valFromIndex
 		where
 			valFromIndex pos = mGet pos l + mGet pos r
 			countRow = undefined :: countRow
 			countCol = undefined :: countCol
-instance (Card dim, Num a) => Num (Matrix dim dim a) where
-	(+) = (/+/) 
+instance (Card dim, Num a) => Num (Matrix TupleIndex dim dim a) where
+	(+) = (/+/)
 	(*) = (/*/)
 	abs matr = fmap abs matr
 	signum matr = error "undefined"
@@ -101,13 +101,13 @@ det matr = case mGetSize matr of
 -}
 
 -- | show the matrix in a simple way
-instance (Show t) => Show (Matrix countRow countCol t) where
-	show = show . mGetAllIndexRow
+instance (Show t) => Show (Matrix TupleIndex countRow countCol t) where
+	show = unlines . map show . mGetAllRows -- mGetAllIndexRow
 -- |enables mapping a function over every element in the matrix
-instance Functor (Matrix countRow countCol) where
+instance (Ix i) => Functor (Matrix i countRow countCol) where
 	fmap f (M array) = M $ (fmap f) array
 -- |enables to fold a matrix into a single value
-instance Foldable (Matrix countRow countCol) where
+instance (Ix i) => Foldable (Matrix i countRow countCol) where
 	foldMap toMonoid (M array) = Fold.foldMap toMonoid array
 {-instance Traversable Matrix where
 	--traverse :: Applicative f => (a -> f b) -> Matrix a -> f (Matrix b)
@@ -129,17 +129,17 @@ instance Applicative (Matrix countRow countCol) where
 -- but the function does not know the position of the element it is applied on.
 -- 'mapWithIndex' solves this problem
 mapWithIndex :: (Card countRow,Card countCol) =>
-	(MatrIndex -> a -> b) -> Matrix countRow countCol a -> Matrix countRow countCol b
+	(TupleIndex -> a -> b) -> Matrix TupleIndex countRow countCol a -> Matrix TupleIndex countRow countCol b
 mapWithIndex f mat = m (mGetSizeTS mat) (\index -> f index (mGet index mat))
 
-m :: (Card countRow, Card countCol) => (countRow,countCol) -> (MatrIndex -> t) -> Matrix countRow countCol t
+m :: (Card countRow, Card countCol) => (countRow,countCol) -> (TupleIndex -> t) -> Matrix TupleIndex countRow countCol t
 m size' f = M $ array ((0,0),size |-| (1,1)) [ (ind, f ind) | ind <- allIndices ]
 	where
 		allIndices = [ (row,col) | row <-[0..(vecX size -1)], col <- [0..(vecY size -1)] ]
 		size = (toInt $ vecX size', toInt $ vecY size')
 
 -- |creates a matrix from a list of lines. The result is packed into Maybe, because the input might be invalid
-mFromListRow :: (Monad m, MatrValidSize countRow countCol) => (countRow,countCol) -> [[t]] -> m (Matrix countRow countCol t)
+mFromListRow :: (Monad m, MatrValidSize countRow countCol) => (countRow,countCol) -> [[t]] -> m (Matrix TupleIndex countRow countCol t)
 mFromListRow (height,width) listLines = if not (isValid listLines)
 	then fail "wrong input format!"
 	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
@@ -172,19 +172,19 @@ mUnsafe listLines = fromMaybe (error "failed to create Matrix from list") $ m li
 mSqr = m-}
 	-- to do: check if input makes up a valid square matrix
 mGetSize (M array) = (snd $ bounds array) |+| (1,1)
-mGetSizeTS :: Matrix countRow countCol t -> (countRow,countCol)
+mGetSizeTS :: (Ix i) => Matrix i countRow countCol t -> (countRow,countCol)
 mGetSizeTS m = undefined
 
 -- |retrieve the height of a matrix, that is the number of lines it consists of
-mGetHeight :: Matrix countRow countCol t -> Height
+--mGetHeight :: Matrix i countRow countCol t -> Height
 mGetHeight = vecX . mGetSize
 -- |retrieve the width of a matrix, that is the number of columns it consists of
-mGetWidth :: Matrix countRow countCol t -> Width
+--mGetWidth :: Matrix i countRow countCol t -> Width
 mGetWidth = vecY . mGetSize
 
 
 -- |retrieve the element by its index from the matrix
-mGet :: MatrIndex -> Matrix countRow countCol t -> t
+--mGet :: i -> Matrix i countRow countCol t -> t
 mGet index (M array) = array ! index
 
 -- |returns a submatrix
@@ -212,22 +212,24 @@ mGetAllCols matr = do
 --mGetLines (M lines) = lines
 
 -- |returns an element, packed in the 'WithOriginMatr' Monad
-mGetWithOrigin :: MatrIndex -> Matrix countRow countCol t -> (t,MatrIndex)
+--mGetWithOrigin :: i -> Matrix i countRow countCol t -> (t,i)
 mGetWithOrigin index matr = (mGet index matr, index)
 
 -- |returns an element, packed in the 'WithOriginMatr' Monad
-mGetWithLog :: MatrIndex -> Matrix countRow countCol t -> LogOrigin t
+{-
+mGetWithLog :: i -> Matrix i countRow countCol t -> LogOrigin t
 mGetWithLog index matr = do
 	tell $ Log [(ValO index)]
 	return $ val
 		where val = mGet index matr
+-}
 mGetAllIndexRow matr = [0..(mGetHeight matr -1)]
 mGetAllIndexCol matr = [0..(mGetWidth matr -1)]
 mGetAllIndex matr = [(row,col) | row <- mGetAllIndexRow matr, col <- mGetAllIndexCol matr ]
 
 
 -- |set the element at a specific index inside a matrix
-mSet :: (Card countRow,Card countCol) => MatrIndex -> t -> Matrix countRow countCol t -> Matrix countRow countCol t
+--mSet :: (Card countRow,Card countCol) => i -> t -> Matrix i countRow countCol t -> Matrix i countRow countCol t
 mSet index val matr = mapWithIndex maybeSet matr
 	where
 		maybeSet index' val' = if index' == index then val else val'
@@ -251,6 +253,7 @@ mSet index val matr = mapWithIndex maybeSet matr
 -- >>> :t runWriter $ mGetWithOrigin (0,1) ma
 -- :: (Integer, Log (Origin MatrIndex))
 
+{-
 type LogOrigin t = Writer (Log (Origin MatrIndex)) t
 type WithLog t = Writer (Log (LogVal t)) t
 
@@ -286,6 +289,7 @@ instance (Show t) => Show (LogVal t) where
 	show NilL = ""
 	show (ValL val) = show val
 	show (Fun str) = str
+-}
 
 
 ---------------------------------------------------------------------------------------
