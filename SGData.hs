@@ -2,9 +2,9 @@
 module SGData(
 	module SGData.Matrix,
 	module SGData.Tree,
-	module SGData.Vector2D
+	--module SGData.Vector2D
 ) where
 
 import SGData.Matrix
 import SGData.Tree
-import SGData.Vector2D
+--import SGData.Vector2D

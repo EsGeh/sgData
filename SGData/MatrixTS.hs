@@ -1,5 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances, FunctionalDependencies, FlexibleInstances, UndecidableInstances, FlexibleContexts, ScopedTypeVariables #-}
 module SGData.MatrixTS(
 	-- * Types
 	Matrix(),
@@ -31,9 +31,11 @@ module SGData.MatrixTS(
 --import Util.Vector2D
 --import Text
 
-import SGCard.Card
-import SGCard.Unary
-import SGData.Vector2D
+--import SGData.Point
+
+import SGCard
+--import SGCard.Unary
+--import SGData.Vector2D
 
 import Data.Foldable(Foldable) -- hiding(concat,toList)
 import qualified Data.Foldable as Fold hiding(sum,concat,toList)
@@ -50,17 +52,109 @@ import Data.Array
 
 import Debug.Trace
 
+
+
+type VecCol dim a = Matrix dim N1 a
+type VecRow dim a = Matrix N1 dim a
+
+-- type Vec a = VecRow N2 a
+newtype Point dim a = Point { fromPoint :: VecRow dim a }
+	deriving( MatrAdd, Eq )
+instance (Eq a, Ord a) => Ord (Point dim a) where
+	compare l r = compare (mGetRow 0 $ fromPoint l) (mGetRow 0 $ fromPoint r)
+	{-
+instance (Show a) => Show (Point dim a) where
+	show p = show $ fromPoint p
+	-}
+
+instance (Eq a, Ix a) => Ix (Point N0 a) where
+	range (l,r) = []
+	index (l,r) p = error "index of point with zero-th dimension not defined!"
+	inRange (l,r) p = True
+{-
+instance (Eq a, Ix a) => Ix (Point N1 a) where
+	range (l,r) = map point1D $ range (pointX l, pointX r)
+	index (l,r) p = index (pointX l, pointX r) $ pointX p
+	inRange (l,r) p = inRange (pointX l, pointX r) $ pointX p --p `elem` mGetRow 0 $ fromPoint p
+-}
+
+allCombs :: [[a]] -> [[a]]
+allCombs [] = []
+allCombs [one] = do
+	f <- one
+	return $ [f]
+allCombs list = do
+	f <- head list
+	rest <- (allCombs $ tail list)
+	return $ [f] ++ rest
+
+-- general
+instance (Eq a, Ord a, Ix a, Ix (Point dimPred a), Card dimPred, MatrValidSize N1 ((Succ dimPred))) => Ix (Point ((Succ dimPred)) a) where
+	-- :: (Point dim a, Point dim a) -> [ Point dim a ]
+	range (l,r) =  let (listL, listR) = (pointGetAll l, pointGetAll r) in
+		map (fromJust . point (undefined :: Succ dimPred)) $ allCombs $ map range $ zip listL listR
+		--firstDim
+		where
+			firstDim = range (firstDim' l, firstDim' r)
+				where
+					firstDim' :: Point (Succ dimPred) a -> Point N1 a
+					firstDim' p = point1D $ head $ pointGetAll p
+					--firstDim' p = point (undefined :: N1) $ [ head $ pointGetAll p ]
+			{-otherDims = map fromPoint $ range (delOneDim l, delOneDim r)
+				where
+					--delOneDim :: Point (Succ dimPred) a -> Point dimPred a
+					delOneDim p = (point (undefined :: dimPred) $ drop 1 $ pointGetAll p) :: Point dimPred a
+					{-
+					delOneDim p = withCard (pointGetDim p -1) $ \newDim ->
+						 point newDim $ take (pointGetDim p -1) $ pointGetAll p
+					-}
+			-}
+	index (l,r) p = index (pointX l, pointX r) $ pointX p
+	inRange (l,r) p = inRange (pointX l, pointX r) $ pointX p --p `elem` mGetRow 0 $ fromPoint p
+type Point0D a = Point N0 a
+type Point1D a = Point N1 a
+type Point2D a = Point N2 a
+type Point3D a = Point N3 a
+
+--pointX :: Point dim a -> a
+pointX = mGet (point2D (0,0)) . fromPoint 
+pointY = mGet (point2D (0,1)) . fromPoint
+pointZ = mGet (point2D (0,2)) . fromPoint
+
+pointGetDim p = pointY $ mGetSize $ fromPoint p
+pointGetDimTS p = rowLength
+	where (_,rowLength) = mGetSizeTS $ fromPoint p
+pointGetAll p = mGetRow 0 $ fromPoint p
+pointGet index = mGet (point2D (0,toInt index)) . fromPoint
+
+point :: (Monad m, MatrValidSize N1 dim) => dim -> [a] -> m (Point dim a)
+point dim list = mFromListRow (n1,dim) [list] >>= return . Point
+
+--point0D :: Point0D a
+point0D = fromJust $ mFromListRow (n0,n0) []
+point1D :: (a) -> Point1D a
+point1D (x) = fromJust $ point n1 [x]
+point2D :: (a,a) -> Point2D a
+point2D (x,y) = fromJust $ point n2 [x,y]
+point3D :: (a,a,a) -> Point3D a
+point3D (x,y,z) = fromJust $ point n3 [x,y,z]
+
+
 -- |a matrix. The constructor is hidden, so it cannot be used directly - use 'm' or 'mUnsafe' instead
 data Matrix countRow countCol t = M (Array MatrIndex t)
-	deriving(Traversable) -- don't know how to implement that, so I am using the "deriving" clause, ...
+	deriving(Traversable,Eq) -- don't know how to implement that, so I am using the "deriving" clause, ...
 -- |index to access elements in a matrix
-type MatrIndex = (IndexRow, IndexCol)
+type MatrIndex = Point2D Int
+--type MatrIndex = (IndexRow,IndexCol) 
+--type MatrIndex = (IndexRow, IndexCol)
 type IndexRow = Int
 type IndexCol = Int
 
-type MatrSize = Vec Int
+type MatrSize = Point2D Int
 type Width = Int
 type Height = Int
+
+fromM (M array) = array
 
 
 --type Size t = Vec t
@@ -69,26 +163,35 @@ type Height = Int
 -- instance declarations: -------------------------------------------------------------
 ---------------------------------------------------------------------------------------
 class MatrMult a b c | a b -> c where
-	(/*/) :: a -> b -> c
+	(|*|) :: a -> b -> c
+
 class MatrAdd a where
-	(/+/) :: a -> a -> a
+	(|+|) :: a -> a -> a
+
+infixl 8 |-| 
+(|-|) :: (Num a, Card countRow, Card countCol)=> Matrix countRow countCol a -> Matrix countRow countCol a -> Matrix countRow countCol a
+l |-| r = l |+| ((-1) *| r)
+
+infixl 9 *| -- scalar mult
+(*|) :: (Num a, Card countRow, Card countCol) => a -> Matrix countRow countCol a -> Matrix countRow countCol a
+s *| matr = m (mGetSizeTS matr) $ \pos -> s * mGet pos matr
 
 instance (Card x, Card y, Card z, Num a) => MatrMult (Matrix x y a) (Matrix y z a) (Matrix x z a) where
-	l /*/ r = m (countRow,countCol) $ valFromIndex
+	l |*| r = m (countRow,countCol) $ valFromIndex
 		where
 			--valFromIndex :: MatrIndex -> c
-			valFromIndex pos = sum $ zipWith (*) (mGetRow (vecX pos) l) (mGetCol (vecY pos) r)
+			valFromIndex pos = sum $ zipWith (*) (mGetRow (pointX pos) l) (mGetCol (pointY pos) r)
 			countRow = undefined :: x
 			countCol = undefined :: z 
 instance (Card countRow, Card countCol, Num a) => MatrAdd (Matrix countRow countCol a) where
-	l /+/ r = m (countRow,countCol) $ valFromIndex
+	l |+| r = m (countRow,countCol) $ valFromIndex
 		where
 			valFromIndex pos = mGet pos l + mGet pos r
 			countRow = undefined :: countRow
 			countCol = undefined :: countCol
 instance (Card dim, Num a) => Num (Matrix dim dim a) where
-	(+) = (/+/) 
-	(*) = (/*/)
+	(+) = (|+|) 
+	(*) = (|*|)
 	abs matr = fmap abs matr
 	signum matr = error "undefined"
 	fromInteger val = m dim (fromIntegral . const val)
@@ -101,8 +204,10 @@ det matr = case mGetSize matr of
 -}
 
 -- | show the matrix in a simple way
+{-
 instance (Show t) => Show (Matrix countRow countCol t) where
 	show = show . mGetAllIndexRow
+-}
 -- |enables mapping a function over every element in the matrix
 instance Functor (Matrix countRow countCol) where
 	fmap f (M array) = M $ (fmap f) array
@@ -133,16 +238,19 @@ mapWithIndex :: (Card countRow,Card countCol) =>
 mapWithIndex f mat = m (mGetSizeTS mat) (\index -> f index (mGet index mat))
 
 m :: (Card countRow, Card countCol) => (countRow,countCol) -> (MatrIndex -> t) -> Matrix countRow countCol t
-m size' f = M $ array ((0,0),size |-| (1,1)) [ (ind, f ind) | ind <- allIndices ]
+m size' f = M $ array (point2D (0,0), (size |+| point2D (-1,-1)) :: MatrIndex) [ (ind, f ind) | ind <- allIndices ]
 	where
-		allIndices = [ (row,col) | row <-[0..(vecX size -1)], col <- [0..(vecY size -1)] ]
-		size = (toInt $ vecX size', toInt $ vecY size')
+		allIndices = [ point2D (row,col) | row <-[0..(sizeX -1)], col <- [0..(sizeY -1)] ]
+		(sizeX, sizeY) = (toInt sizeX', toInt sizeY')
+		size = (point2D (toInt sizeX', toInt sizeY')) :: MatrIndex
+		(sizeX', sizeY') = size'
+		--size = point2D $ size' -- (toInt $ pointX size', toInt $ pointY size')
 
 -- |creates a matrix from a list of lines. The result is packed into Maybe, because the input might be invalid
 mFromListRow :: (Monad m, MatrValidSize countRow countCol) => (countRow,countCol) -> [[t]] -> m (Matrix countRow countCol t)
 mFromListRow (height,width) listLines = if not (isValid listLines)
 	then fail "wrong input format!"
-	else (return $ m (height,width) (\(row,col) -> (listLines !! row) !! col))
+	else (return $ m (height,width) (\index -> (listLines !! pointX index ) !! pointX index))
 	where
 		isValid listLines = Fold.foldl (\x y -> x && (length y==widthRT)) True listLines
 		(heightRT,widthRT) = (toInt height, toInt width)
@@ -171,16 +279,17 @@ mUnsafe listLines = fromMaybe (error "failed to create Matrix from list") $ m li
 {-mSqr :: [[t]] -> Maybe (Matrix t)
 mSqr = m-}
 	-- to do: check if input makes up a valid square matrix
-mGetSize (M array) = (snd $ bounds array) |+| (1,1)
+mGetSize :: Matrix countRow countCol a -> MatrSize
+mGetSize (M array) = (snd $ bounds array) |+| (point2D (1,1) :: MatrIndex)
 mGetSizeTS :: Matrix countRow countCol t -> (countRow,countCol)
 mGetSizeTS m = undefined
 
 -- |retrieve the height of a matrix, that is the number of lines it consists of
 mGetHeight :: Matrix countRow countCol t -> Height
-mGetHeight = vecX . mGetSize
+mGetHeight = pointX . mGetSize
 -- |retrieve the width of a matrix, that is the number of columns it consists of
 mGetWidth :: Matrix countRow countCol t -> Width
-mGetWidth = vecY . mGetSize
+mGetWidth = pointY . mGetSize
 
 
 -- |retrieve the element by its index from the matrix
@@ -192,12 +301,12 @@ mGetSub (pos,size) matr = m size (\index -> mGet (index |+| pos) matr)
 -- |returns a row of the matrix as a list
 mGetRow indexRow matr = do
 	indexCol <- mGetAllIndexCol matr
-	let index = (indexRow,indexCol)
+	let index = point2D (indexRow,indexCol)
 	return $ mGet index matr
 -- |returns a column of the matrix as a list
 mGetCol indexCol matr = do
 	indexRow <- mGetAllIndexRow matr
-	let index = (indexRow,indexCol)
+	let index = point2D (indexRow,indexCol)
 	return $ mGet index matr
 
 -- |returns a list of all rows in then matrix

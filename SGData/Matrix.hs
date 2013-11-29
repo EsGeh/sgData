@@ -31,7 +31,7 @@ module SGData.Matrix(
 --import Util.Vector2D
 --import Text
 --import qualified Text as T
-import SGData.Vector2D
+--import SGData.Vector2D
 
 import Data.Foldable hiding(concat,toList)
 import Data.Foldable as Fold hiding(concat,toList)

@@ -16,7 +16,6 @@ cabal-version:       >=1.8
 
 library
   exposed-modules: SGData, SGData.Matrix, SGData.MatrixTS,
-    SGData.Tree, SGData.TreeZipper,
-    SGData.Vector2D
+    SGData.Tree, SGData.TreeZipper, SGData.Point
   -- other-modules:       
   build-depends:       sgCard >= 1.0.0.0, base ==4.5.*, mtl ==2.1.*, array ==0.4.*
