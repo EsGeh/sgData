@@ -8,7 +8,12 @@ module SGData.Tree(
 	-- * getters
 	value,children,
 	-- * setters
+	-- ** manipulate the value of a node
+	applyOnValue,
+	-- ** manipulate the children of a node
 	addChild,delChildFromIndex,mapOverChildren,applyOnChildren,
+	-- * map functions over a tree:
+	mapNodeF
 	-- * serializations
 	--renderTree,
 	--pShow
@@ -39,6 +44,9 @@ node value sublist = Node value (map node --}
 -- | create a leaf from a value
 leaf :: t -> Node t 
 leaf value = Node value []
+
+-- | apply function on the value of a node:
+applyOnValue f n = node (f $ value n) (children n)
 
 -- | create a node that has children
 node :: t -> [Node t] -> Node t
@@ -75,6 +83,11 @@ applyOnChildren f node = Node oldVal newChildren
 instance Functor Node where
 	fmap f (Node value []) = leaf (f value)
 	fmap f (Node params (children)) = Node (f params) (map (fmap f) children)
+
+-- |a special kind of mapping over a tree, where the function sees the whole subtree of each node
+mapNodeF :: (Node a -> b) -> Tree a -> Tree b
+mapNodeF f n = node (f n) (map (mapNodeF f) $ children n)
+
 {--
 instance Fold.Foldable Node where
 	foldMap toMonoid (Node params list)= 
@@ -137,12 +150,11 @@ pShow maxDepth width (Node params children) = if maxDepth <= 0
 
 -- |shows the tree in one line
 instance (Show t) => Show (Node t) where
-	show (Node params []) = show params 
-	show (Node params children) = show params ++ showChildren children ++ "\n"
+	show = showTree 0
 		where
-			showChildren :: (Show t) => [Node t] -> String
-			showChildren list = "-> [" ++ showChildren' list ++ "]"
+			showTree tabCount (Node params children) = tabs ++ show params ++ showChildren ++ "\n"
 				where
-					showChildren' [] = ""
-					showChildren' (node:[]) = show node
-					showChildren' (node:rest) = show node ++ "," ++ showChildren' rest
+					tabs = take (tabCount * 2) $ cycle " "
+					showChildren = case children of
+						[] -> ""
+						_ -> (foldl (++) " [\n" $ map (showTree (tabCount+1)) children) ++ tabs ++ "]"
