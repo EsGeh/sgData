@@ -152,9 +152,18 @@ pShow maxDepth width (Node params children) = if maxDepth <= 0
 instance (Show t) => Show (Node t) where
 	show = showTree 0
 		where
+			showTree tabCount (Node params children) = show params ++ "\n" ++ (foldl (++) "" $ map (tabs++) showChildren)
+				where
+					tabs = (take ((tabCount+1) * 2) $ cycle "| ") ++ "+-"
+					--tabs = take ((tabCount+1) * 2) $ "+" ++ cycle "-"
+					showChildren = case children of
+						[] -> []
+						_ -> map (showTree (tabCount+1)) children
+			{-
 			showTree tabCount (Node params children) = tabs ++ show params ++ showChildren ++ "\n"
 				where
 					tabs = take (tabCount * 2) $ cycle " "
 					showChildren = case children of
 						[] -> ""
 						_ -> (foldl (++) " [\n" $ map (showTree (tabCount+1)) children) ++ tabs ++ "]"
+			-}
