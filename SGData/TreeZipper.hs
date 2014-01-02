@@ -83,8 +83,44 @@ top zipper = case up zipper of
 leftBottom zipper = case down 0 zipper of
 	Nothing -> zipper
 	Just leftMostChild -> leftBottom leftMostChild
+
+safeIndexing index list = if index < 0 then Nothing else
+	safeIndexing' index list
+
+safeIndexing' index list = case list of
+	[] -> Nothing
+	(x:xs) -> case index of
+		0 -> Just x
+		_ -> safeIndexing' (index-1) xs
+
 down :: Int -> Zipper a -> Maybe (Zipper a)
-down int zipper = case children (focus zipper) of
+down int zipper = do
+	child <- safeIndexing int (children $ focus zipper)
+	let parentTree = applyOnChildren (delFromIndex int) $ focus zipper
+	return $ Zipper ( 
+		child,
+		TCDown {
+			childIndex = int,
+			parentCxt = context zipper,
+			parentTree = parentTree })
+
+
+{-
+	[] -> Nothing
+	children -> if int >= 0
+		then Just $ Zipper $ (
+			children !! int,
+			TCDown {
+				childIndex = int,
+				parentCxt = context zipper,
+				parentTree = parentTree })
+		else Nothing
+	where
+		parentTree = applyOnChildren (delFromIndex int) $ focus zipper
+-}
+
+down' :: Int -> Zipper a -> Maybe (Zipper a)
+down' int zipper = case children (focus zipper) of
 	[] -> Nothing
 	children -> if int < length children && int >= 0
 		then Just $ Zipper $ (
@@ -98,11 +134,23 @@ down int zipper = case children (focus zipper) of
 		parentTree = applyOnChildren (delFromIndex int) $ focus zipper
 
 allDown :: Zipper a -> [Zipper a]
-allDown zipper = foldl' conc [] $ take (length $ children $ focus zipper) [0..]
+allDown zipper = allDown 0
+	where
+		allDown index = case down index zipper of
+			Nothing -> []
+			Just child -> child : allDown (index+1) 
+
+{-
+allDown' index children = case children $ focus zipper of
+	[] -> []
+
+
+--foldl conc [] $ take (length $ children $ focus zipper) [0..]
 	where
 		conc l index = case down index zipper of
 			Nothing -> l
 			Just child -> l ++ [child]
+-}
 
 up :: Zipper a -> Maybe (Zipper a)
 up zipper = case context zipper of
