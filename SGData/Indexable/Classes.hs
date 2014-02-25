@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, FlexibleContexts, ScopedTypeVariables, UndecidableInstances #-}
 module SGData.Indexable.Classes(
 	Listable,
 	ListableCT,
@@ -15,21 +15,16 @@ import Data.Proxy
 import Data.Maybe(fromJust)
 
 
-{-
-class (Ix i) => Indexable l i a | l -> i, l -> a where
-	get :: i -> l -> a
--}
-
 -- up bounded: 
 class UpBounded l i | l -> i where
 	upperBound :: l -> i
-
+ -- * ct
 class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- down bounded: 
 class DownBounded l i | l -> i where
 	lowerBound :: l -> i
-
+ -- * ct
 class (Card size) => DownBoundedCT l size i | l -> size, l -> i where
 --class (Reifies size Int) => UpBoundedCT l size i | l -> size, l -> i where
 
@@ -39,28 +34,33 @@ class BoundedCont l i | l -> i where
 
 class (Card min, Card max) => BoundedCT l min max i | l -> min, l -> max, l -> i
 
-instance (Card size, UpBoundedCT l size Int) => UpBounded l Int where
+ -- if ct bounded => also bounded
+instance (UpBoundedCT l size Int) => UpBounded l Int where
 	upperBound x = fromCard (undefined :: size)
-instance (Card size, DownBoundedCT l size Int) => DownBounded l Int where
+instance (DownBoundedCT l size Int) => DownBounded l Int where
 	lowerBound x = fromCard (undefined :: size)
-instance (Card min, Card max, BoundedCT l min max Int) => BoundedCont l Int where
+instance (BoundedCT l min max Int) => BoundedCont l Int where
 	bounds _ = (lower, upper)
 		where
 			lower = fromCard (undefined :: min)
 			upper = fromCard (undefined :: max)
 
+-- homomorphism: (x -> y) |-->  f
 class FromFunction f x y | f -> x, f -> y where
 	fromFunction :: (x -> y) -> f
 
+-- homomorphism:  f |--> (x -> y)
 class ToFunction f x y | f -> x, f -> y where
 	toFunction :: f -> x -> y
+class ToFunctionM f x y | f -> x, f -> y where
+	toFunctionM :: f -> x -> Maybe y
 
 -- infixl 8 |+|
 --a -> a -> a
 --class MatrAdd a where
 -- |+| :: a -> a -> a
 
-mAdd :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => f -> f -> f
+mAdd :: forall f min max i a . (Num a, Ix i, Card min, Card max, BoundedCT f min max i, ToFunction f i a, FromFunction f i a) => f -> f -> f
 mAdd l r = fromFunction f
 	where
 		f :: i -> a 
@@ -89,10 +89,13 @@ func n = do
 -}
 
 instance (Card size) => UpBoundedCT (ListCTSize a size) size Int
+instance (Card size) => BoundedCT (ListCTSize a size) N0 size Int
+instance (Card size) => ToFunctionM (ListCTSize a size) Int a where
+	toFunctionM l i = case i < fromCard (undefined :: size) of
+		False -> Nothing
+		True -> Just $ fromTestList l !! i
 instance (Card size) => ToFunction (ListCTSize a size) Int a where
-	toFunction l i = case i < fromCard (undefined :: size) of
-		False -> error "index error"
-		True -> fromTestList l !! i
+	toFunction l = fromJust . toFunctionM l
 instance (Card size) => FromFunction (ListCTSize a size) Int a where
 	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromCard (undefined :: size)-1)] ]
 {-
@@ -100,10 +103,14 @@ instance FromFunction (ListCTSize Int N3) Int Int where
 	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromCard (undefined :: N3)-1)] ]
 -}
 
-test' :: Maybe (ListCTSize Int N3)
-test' = do
-	l <- (createTestList [1..] :: Maybe (ListCTSize Int N3))
-	return $ mAdd l l
+test' :: forall n . Card n => n -> ListCTSize Int n
+test' _ = fromJust $ do
+	l <- (createTestList [1..] :: Maybe (ListCTSize Int n))
+	r <- (createTestList [1..] :: Maybe (ListCTSize Int n))
+	return $ mAdd l r
+
+test1 = test' n1
+test6 = test' n6
 
 {-
 class DownBounded l i | l -> i where
