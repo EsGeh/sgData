@@ -14,21 +14,24 @@ import Data.Maybe(fromJust)
 class UpBounded l i | l -> i where
 	upperBound :: l -> i
  -- * ct
---class (Ix size) => UpBoundedCT l size i | l -> size, l -> i where
-class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
+class (Ix i, Container i size) => UpBoundedCT l size i | l -> size, l -> i where
+--class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- down bounded: 
 class DownBounded l i | l -> i where
 	lowerBound :: l -> i
  -- * ct
-class (Card size) => DownBoundedCT l size i | l -> size, l -> i where
+class (Ix i, Container i size) => DownBoundedCT l size i | l -> size, l -> i where
 --class (Reifies size Int) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- has upper and lower boundaries:
 class BoundedCont l i | l -> i where
 	bounds :: l -> (i,i)
 
-class (Card2 bounds) => BoundedCT l bounds i | l -> bounds, l -> i
+class Index2 i where
+	fromIndex2 :: i -> (i,i)
+
+class (Ix i, Container (i,i) bounds ) => BoundedCT l bounds i | l -> bounds, l -> i
 
  -- if ct bounded => also bounded
  -- this would be nice, but needs compiler flag "-UndecidableInstances", which is considered dangerous...
@@ -62,17 +65,17 @@ infixl 8 |*
 -- |+| :: a -> a -> a
 l |+| r = mAdd l r
 s *| r = mScalarMult s r
-(|*) :: forall f bounds i a . (Num a, Ix i, Card2 bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> a -> f
+(|*) :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> a -> f
 (|*) = flip (*|)
 
 
-mAdd :: forall f bounds i a . (Num a, Ix i, Card2 bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> f -> f
+mAdd :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> f -> f
 mAdd l r = fromFunction f
 	where
 		f :: i -> a 
 		f i = (toFunction l) i + (toFunction r) i
 
-mScalarMult :: forall f bounds i a . (Num a, Ix i, Card2 bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => a -> f -> f
+mScalarMult :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => a -> f -> f
 mScalarMult s v = fromFunction f
 	where
 		f i = s * (toFunction v) i
@@ -87,8 +90,8 @@ mAdd l r = fromFunction f
 data ListCTSize a size = ListCTSize { fromTestList :: [a] }
 	deriving( Show )
 
-createTestList :: forall a size . (Card size) => [a] -> Maybe (ListCTSize a size)
-createTestList list = takeSafe (fromCard (undefined :: size)) list >>= return . ListCTSize
+createTestList :: forall a size . (Container Int size) => [a] -> Maybe (ListCTSize a size)
+createTestList list = takeSafe (fromContainer (undefined :: size)) list >>= return . ListCTSize
 
 {-
 test' i = withInt i func
@@ -99,26 +102,26 @@ func n = do
 	return $ show $ (list `mAdd` list)
 -}
 
-instance (Card size) => UpBoundedCT (ListCTSize a size) size Int
-instance (Card size) => BoundedCT (ListCTSize a size) (N0,size) Int
+instance (Container Int size) => UpBoundedCT (ListCTSize a size) size Int
+instance (Container Int size) => BoundedCT (ListCTSize a size) (N0,size) Int
 {-
 instance (Card size) => ToFunctionM (ListCTSize a size) Int a where
 	toFunctionM l i = case i < fromCard (undefined :: size) of
 		False -> Nothing
 		True -> Just $ fromTestList l !! i
 -}
-instance (Card size) => ToFunction (ListCTSize a size) Int a where
-	toFunction l i = case i < fromCard (undefined :: size) of
+instance (Container Int size) => ToFunction (ListCTSize a size) Int a where
+	toFunction l i = case i < fromContainer (undefined :: size) of
 		False -> error "index error"
 		True -> fromTestList l !! i
-instance (Card size) => FromFunction (ListCTSize a size) Int a where
-	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromCard (undefined :: size)-1)] ]
+instance (Container Int size) => FromFunction (ListCTSize a size) Int a where
+	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromContainer (undefined :: size)-1)] ]
 {-
 instance FromFunction (ListCTSize Int N3) Int Int where
 	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromCard (undefined :: N3)-1)] ]
 -}
 
-test' :: forall n . Card n => n -> ListCTSize Int n
+test' :: forall n . Container Int n => n -> ListCTSize Int n
 test' _ = fromJust $ do
 	l <- (createTestList [1..] :: Maybe (ListCTSize Int n))
 	r <- (createTestList [1..] :: Maybe (ListCTSize Int n))

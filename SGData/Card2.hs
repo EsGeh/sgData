@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types, FunctionalDependencies #-}
 module SGData.Card2 where
 
 import Data.Reflection
@@ -30,6 +30,10 @@ instance Show Zero where
 instance (Card n) => Show (Succ n) where
 	show = show . fromCard
 
+
+instance Container Int Zero where fromContainer _ = 0
+instance (Container Int n) => Container Int (Succ n) where fromContainer _ = fromContainer (undefined :: n) + 1
+
 class LE l r
 instance LE Zero Zero
 instance (LE l r) => LE (Succ l) (Succ r)
@@ -43,6 +47,14 @@ instance (LT l r) => LT l (Succ r)
 data CardProx config = CardProx
 
 --class Index i where
+
+
+class Container t c | c -> t where
+	fromContainer :: c -> t
+
+--
+instance (Container t l, Container t r) => Container (t,t) (l,r) where
+	fromContainer (l,r) = (fromContainer l, fromContainer r)
 
 class Card c where
 	fromCard :: c -> Int
