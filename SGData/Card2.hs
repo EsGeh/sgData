@@ -1,5 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types #-}
-module Card2 where
+module SGData.Card2 where
 
 import Data.Reflection
 import Data.Proxy
@@ -42,6 +42,8 @@ instance (LT l r) => LT l (Succ r)
 
 data CardProx config = CardProx
 
+--class Index i where
+
 class Card c where
 	fromCard :: c -> Int
 
@@ -49,6 +51,10 @@ class Card2 c where
 	fromCard2 :: c -> (Int,Int)
 class Card3 c where
 	fromCard3 :: c -> (Int,Int,Int)
+
+-- create a Card2 from a tuple of Cards:
+instance (Card l, Card r) => Card2 (l,r) where
+	fromCard2 (l,r) = (fromCard l, fromCard r)
 {-
 class (Card size) => CardList size l where
 	getCard :: (LT index size, Card n) => index -> l -> n

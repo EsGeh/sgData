@@ -1,5 +1,23 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+-- {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
+module SGData.MatrixTS where
+
+import SGData.Card2
+import SGData.Classes
+
+import Data.Array
+
+newtype Tensor i a bounds = M { fromTensor :: Array i a }
+
+instance (Card2 bounds) => FromFunction (Tensor Int a bounds) Int a where
+	fromFunction f = M $ array bounds list
+		where
+			bounds = fromCard2 (undefined :: bounds)
+			list = [ (i, f i) | i <- [ minBound..(maxBound-1) ] ]
+			minBound = fst bounds
+			maxBound = snd bounds
+{-
 module SGData.MatrixTS(
 	-- * Types
 	Matrix(),
@@ -278,3 +296,4 @@ instance (Show t) => Show (LogVal t) where
 type Length = Int
 {-arrayFromList :: Length -> [a] -> Array Length a
 arrayFromList length list = listArray (0,(length-1)) list-}
+-}

@@ -1,10 +1,8 @@
 -- |This module exports the most important sub modules
 module SGData(
-	module SGData.Matrix,
+	module SGData.MatrixTS,
 	module SGData.Tree,
-	module SGData.Vector2D
 ) where
 
-import SGData.Matrix
+import SGData.MatrixTS
 import SGData.Tree
-import SGData.Vector2D
