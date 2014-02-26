@@ -1,6 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
--- {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
 module SGData.Tensor where
 
 --import SGData.Card2

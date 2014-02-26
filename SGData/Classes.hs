@@ -76,25 +76,25 @@ s *| r = mScalarMult s r
 s /| r = mScalarMult (1/s) r
 
 -- flipped parameters:
-(|*) :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> a -> f
+(|*) :: forall f i a . (Ix i, Num a, ToFunction f i a, FromFunction f i a) => f -> a -> f
 (|*) = flip (*|)
-(|/) :: forall f bounds i a . (Fractional a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> a -> f
+(|/) :: forall f i a . (Ix i, Fractional a, ToFunction f i a, FromFunction f i a) => f -> a -> f
 (|/) = flip (/|)
 
 
-mOp :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => (a -> a -> a) -> f -> f -> f
+mOp :: forall f i a . (Ix i, ToFunction f i a, FromFunction f i a) => (a -> a -> a) -> f -> f -> f
 mOp f l r = fromFunction f'
 	where
 		f' :: i -> a 
 		f' i = (toFunction l) i `f` (toFunction r) i
 
-mAdd :: (Num a, Ix i, Container (i, i) bounds, BoundedCT f bounds i,ToFunction f i a, FromFunction f i a) =>f -> f -> f
+mAdd :: (Num a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mAdd = mOp (+)
-mSub :: (Num a, Ix i, Container (i, i) bounds, BoundedCT f bounds i,ToFunction f i a, FromFunction f i a) =>f -> f -> f
+mSub :: (Num a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mSub = mOp (-)
-mMul :: (Num a, Ix i, Container (i, i) bounds, BoundedCT f bounds i,ToFunction f i a, FromFunction f i a) =>f -> f -> f
+mMul :: (Num a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mMul = mOp (*)
-mDiv :: (Fractional a, Ix i, Container (i, i) bounds, BoundedCT f bounds i,ToFunction f i a, FromFunction f i a) =>f -> f -> f
+mDiv :: (Fractional a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mDiv = mOp (/)
 
 {-mAdd :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => f -> f -> f
@@ -104,7 +104,7 @@ mAdd l r = fromFunction f
 		f i = (toFunction l) i + (toFunction r) i
 -}
 
-mScalarMult :: forall f bounds i a . (Num a, Ix i, Container (i,i) bounds, BoundedCT f bounds i, ToFunction f i a, FromFunction f i a) => a -> f -> f
+mScalarMult :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => a -> f -> f
 mScalarMult s v = fromFunction f
 	where
 		f i = s * (toFunction v) i
