@@ -3,8 +3,10 @@
 -- {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
 module SGData.MatrixTS where
 
-import SGData.Card2
+--import SGData.Card2
 import SGData.Classes
+
+import SGCard
 
 import Data.Array
 import Data.Reflection

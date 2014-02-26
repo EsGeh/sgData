@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types, FunctionalDependencies, ScopedTypeVariables #-}
 module SGData.Card2 where
+{-
 
 import Data.Reflection
 import Data.Proxy
@@ -67,13 +68,7 @@ class Card3 c where
 -- create a Card2 from a tuple of Cards:
 instance (Card l, Card r) => Card2 (l,r) where
 	fromCard2 (l,r) = (fromCard l, fromCard r)
-{-
-class (Card size) => CardList size l where
-	getCard :: (LT index size, Card n) => index -> l -> n
-class CardN c n | c -> n where
-	fromCardN :: (Card index, Card res) => index -> c -> res
--}
-
+--
 -- data Proxy config = Proxy
 instance (Reifies config Int) => Card (Proxy config) where
 	fromCard x = (reflect x)
@@ -110,4 +105,5 @@ bla2 _ = fromContainer (undefined :: bounds)
 data CardInstance = forall config . Card config => CardInstance config
 instance Card CardInstance where
 	toInt (CardInstance config) = toInt config
+-}
 -}

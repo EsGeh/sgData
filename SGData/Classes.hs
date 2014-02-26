@@ -1,9 +1,8 @@
  {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 module SGData.Classes where
 
---import SGCard
-import SGData.Card2
---import SGData.Indexable.Card2
+import SGCard
+
 import Data.Array
 import Data.Reflection
 --import Data.Proxy
@@ -13,14 +12,14 @@ import Data.Maybe(fromJust)
 -- up bounded: 
 class UpBounded l i | l -> i where
 	upperBound :: l -> i
- -- * ct
+ -- ct
 class (Ix i, Container i size) => UpBoundedCT l size i | l -> size, l -> i where
 --class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- down bounded: 
 class DownBounded l i | l -> i where
 	lowerBound :: l -> i
- -- * ct
+ -- ct
 class (Ix i, Container i size) => DownBoundedCT l size i | l -> size, l -> i where
 --class (Reifies size Int) => UpBoundedCT l size i | l -> size, l -> i where
 
@@ -32,6 +31,9 @@ class Index2 i where
 	fromIndex2 :: i -> (i,i)
 
 class (Ix i, Container (i,i) bounds ) => BoundedCT l bounds i | l -> bounds, l -> i
+
+--instance BoundedCT c (min,max) i => (DownBoundedCT c min i) where
+--instance (DownBoundedCT c min i, UpBoundedCT c max i) => BoundedCT c (min,max) i where
 
  -- if ct bounded => also bounded
  -- this would be nice, but needs compiler flag "-UndecidableInstances", which is considered dangerous...
@@ -169,6 +171,7 @@ class IFromCard i where
 	fromCard :: (Card n) => n -> i
 -}
 
+{-
 class Listable l a | l -> a where
 	toList :: l -> [a]
 
@@ -201,6 +204,7 @@ instance ListableCT N3 (a,a,a) a
 instance ListableCT N4 (a,a,a,a) a 
 instance ListableCT N5 (a,a,a,a,a) a 
 instance ListableCT N6 (a,a,a,a,a, a) a 
+-}
 -}
 
 takeSafe n list = let l = take n list in
