@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, UndecidableInstances, ScopedTypeVariables, Rank2Types, FunctionalDependencies, ScopedTypeVariables #-}
 module SGData.Card2 where
 
 import Data.Reflection
@@ -44,7 +44,7 @@ instance LT Zero N1
 instance (LT l r) => LT (Succ l) (Succ r)
 instance (LT l r) => LT l (Succ r)
 
-data CardProx config = CardProx
+--data CardProx config = CardProx
 
 --class Index i where
 
@@ -54,7 +54,7 @@ class Container t c | c -> t where
 
 --
 instance (Container t l, Container t r) => Container (t,t) (l,r) where
-	fromContainer (l,r) = (fromContainer l, fromContainer r)
+	fromContainer tuple = (fromContainer $ fst tuple, fromContainer $ snd tuple)
 
 class Card c where
 	fromCard :: c -> Int
@@ -100,6 +100,11 @@ withInt3 i f = reify i f
 
 test = withInt 10 (show . fromCard)
 test2 = withInt2 (1,2) $ show . fromCard2
+
+bla1 :: forall bounds . Container Int bounds => bounds -> String
+bla1 _ = show $ fromContainer (undefined :: bounds)
+bla2 :: forall bounds . Container (Int,Int) bounds => bounds -> (Int,Int)
+bla2 _ = fromContainer (undefined :: bounds)
 
 {-
 data CardInstance = forall config . Card config => CardInstance config

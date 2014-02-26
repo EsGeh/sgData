@@ -203,20 +203,10 @@ instance ListableCT N5 (a,a,a,a,a) a
 instance ListableCT N6 (a,a,a,a,a, a) a 
 -}
 
-newtype ListFL dim a = ListFL { flToList :: [a] }
-	deriving( Show )
-instance (Card size) => Listable (ListFL size a) a where
-	toList = flToList
-instance (Card size) => ListableCT size (ListFL size a) a
-
-listFLFromList :: Card size => size -> [a] -> Maybe (ListFL size a)
-listFLFromList size list = takeSafe (fromCard size) list >>= return . ListFL
-
 takeSafe n list = let l = take n list in
 	if length l == n
 		then Just l
-		else Nothing where
-	toList = flToList
+		else Nothing 
 
 {-
 infixl 8 |+| -- :: a -> a -> a

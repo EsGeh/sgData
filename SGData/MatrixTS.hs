@@ -1,5 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 -- {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveTraversable, MultiParamTypeClasses, TypeSynonymInstances #-}
 module SGData.MatrixTS where
 
@@ -7,16 +7,46 @@ import SGData.Card2
 import SGData.Classes
 
 import Data.Array
+import Data.Reflection
+import Data.Proxy
 
-newtype Tensor i a bounds = M { fromTensor :: Array i a }
+newtype Tensor i a bounds = T { fromTensor :: Array i a }
+	deriving( Show )
 
-instance (Card2 bounds) => FromFunction (Tensor Int a bounds) Int a where
-	fromFunction f = M $ array bounds list
+instance (Ix i, Container (i,i) bounds) => FromFunction (Tensor i a bounds) i a where
+	fromFunction f = T $ array bounds list --array bounds list
 		where
-			bounds = fromCard2 (undefined :: bounds)
-			list = [ (i, f i) | i <- [ minBound..(maxBound-1) ] ]
+			bounds = fromContainer (undefined :: bounds)
+			list = [ (i, f i) | i <- ((range (minBound, (maxBound)))) ]
 			minBound = fst bounds
 			maxBound = snd bounds
+{-
+instance (Ix i, Container (i,i) bounds) => FromFunction (Tensor i a bounds) i a where
+	fromFunction f = T $ array bounds list --array bounds list
+		where
+			bounds = fromContainer (undefined :: bounds)
+			list = [ (i, f i) | i <- ((range (minBound, (maxBound)))) ]
+			minBound = fst bounds
+			maxBound = snd bounds
+-}
+
+instance (Ix i, Container (i,i) bounds) => ToFunction (Tensor i a bounds) i a where
+	toFunction (T a) i = a ! i
+
+instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) bounds i
+
+{-
+instance (Show a, Show i, Ix i) => Show (Tensor i a bounds) where
+	show (T a) = show a
+-}
+
+-- withInt2 :: (Int, Int)-> (forall n.Data.Reflection.Reifies * n (Int, Int) =>Data.Proxy.Proxy * n -> w)-> w
+testTensor :: Tensor (Int,Int) Int ((N0,N0),(N2,N2))
+testTensor = fromFunction (\(x,y) -> x+y) 
+
+f :: forall bounds . Container (Int,Int) bounds => bounds -> Int
+f _ = toFunction (fromFunction id :: Tensor Int Int bounds) 0
+
 {-
 module SGData.MatrixTS(
 	-- * Types
