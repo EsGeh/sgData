@@ -46,11 +46,19 @@ class (Container Int size) => FromListCT l a size | l -> a, l -> size where
 class ListCT l a size | l -> a, l -> size where	
 	get :: (LessThan n size) => n -> l -> a
 
+--instance ToListCT a a N1 where toListCT = id
+instance ToListCT (a,a) a N2 where toListCT (x,y) = [x,y]
+instance ToListCT (a,a,a) a N3 where toListCT (x,y,z) = [x,y,z]
+instance FromListCT (a,a) a N2 where fromListCT [x,y] = (x,y)
+instance FromListCT (a,a,a) a N3 where fromListCT [x,y,z] = (x,y,z)
+
 {-
-instance ListCT (a,a) a N2
-	get 
+instance (Ix a) => MultiIndex N2 (a,a) a
+instance (Ix a) => MultiIndex N1 a a
 -}
 
+instance (ToListCT l a size) => ListCT l a size where
+	get n l = toListCT l !! fromCard n
 
 -- these are just shortcuts:
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
@@ -120,6 +128,7 @@ mMul = mOp (*)
 mDiv :: (Fractional a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mDiv = mOp (/)
 
+
 reduceDim :: forall n dim m m' ii ii' i a . (LessThan n (Succ dim), MultiIndex (Succ dim) ii i, MultiIndex dim ii' i, FromFunction m' ii' a, ToFunction m ii a) => n -> i -> m -> m'
 reduceDim n i f = fromFunction func'
 	where
@@ -129,10 +138,7 @@ reduceDim n i f = fromFunction func'
 				ii = insertCT n i ii'
 		func = (toFunction f)
 
---mMatrMul :: forall f g h ii i a n . (Container Int n, Num a, MultiIndex N2 ii i, Matrix f ii i a (n,n), Matrix g ii i a (n,n), Matrix h ii i a (n,n)) => f -> g -> h
---mMatrMul :: forall f g h ii i a l m n . (Num a, Ix ii, MultiIndex N2 ii i, BoundedCT f (l,m) ii, BoundedCT g (m,n) ii, BoundedCT h (l,n) ii, ToFunction f ii a, ToFunction g ii a, FromFunction h ii a) => f -> g -> h
---mMatrMul :: forall f g h ii i a . (MultiIndex N2 ii i, ToFunction f ii a, ToFunction g ii a, FromFunction h ii a, Num a) =>f -> g -> h
-mMatrMul :: (Num y, ListCT x t N2, ToFunction f x y, ToFunction f1 x y,FromFunction f2 x y) =>f1 -> f -> f2
+--mMatrMul :: (Num y, ListCT x t N2, ToFunction f x y, ToFunction f1 x y,FromFunction f2 x y) =>f1 -> f -> f2
 mMatrMul f g = fromFunction res
 	where
 		res ii = funcF ii + funcG ii --funcF (row,col) * funcG col (row,col)

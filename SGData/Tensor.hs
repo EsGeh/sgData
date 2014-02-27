@@ -14,6 +14,11 @@ import Data.Proxy
 newtype Tensor i a bounds = T { fromTensor :: Array i a }
 	deriving( Show )
 
+{-
+instance Show (Tensor i a bounds) where
+	show t = 
+-}
+
 instance (Ix i, Container (i,i) bounds) => FromFunction (Tensor i a bounds) i a where
 	fromFunction f = T $ array bounds list --array bounds list
 		where
