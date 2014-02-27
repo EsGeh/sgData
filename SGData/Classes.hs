@@ -37,6 +37,34 @@ class FromFunction f x y | f -> x, f -> y where
 class ToFunction f x y | f -> x, f -> y where
 	toFunction :: f -> x -> y
 
+class (Container Int size) => ToListCT l a size | l -> a, l -> size where
+	toListCT :: l -> [a]
+
+class (Container Int size) => FromListCT l a size | l -> a, l -> size where
+	fromListCT :: [a] -> l
+
+class ListCT l a size | l -> a, l -> size where	
+	get :: (LessThan n size) => n -> l -> a
+
+{-
+instance ListCT (a,a) a N2
+	get 
+-}
+
+
+-- these are just shortcuts:
+class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
+	MultiIndex dim ii i | ii -> dim, ii -> i
+
+class (BoundedCT m bounds ii, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) =>
+	Matrix m ii i a bounds | m -> ii, m -> a, m -> bounds
+
+-- to be moved to SGCard:
+class (Container Int n, Container Int m) => LessThan n m 
+instance (Container Int n) => LessThan Zero (Succ n)
+instance (LessThan n m) => LessThan (Succ n) (Succ m)
+
+
 --instance BoundedCT c (min,max) i => (DownBoundedCT c min i) where
 --instance (DownBoundedCT c min i, UpBoundedCT c max i) => BoundedCT c (min,max) i where
 
@@ -54,9 +82,6 @@ instance (BoundedCT l min max Int) => BoundedCont l Int where
 			upper = fromCard (undefined :: max)
 -}
 
-{-class ToFunctionM f x y | f -> x, f -> y where
-	toFunctionM :: f -> x -> Maybe y-}
-
 infixl 8 |+|
 infixl 8 |-|
 infixl 8 |*|
@@ -65,9 +90,7 @@ infixl 8 *|
 infixl 8 /|
 infixl 8 |*
 infixl 8 |/
---a -> a -> a
---class MatrAdd a where
--- |+| :: a -> a -> a
+
 l |+| r = mAdd l r
 l |-| r = mSub l r
 l |*| r = mMul l r
@@ -97,26 +120,6 @@ mMul = mOp (*)
 mDiv :: (Fractional a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mDiv = mOp (/)
 
-class (Container Int n, Container Int m) => LessThan n m 
-instance (Container Int n) => LessThan Zero (Succ n)
---instance (Container Int m, Container Int n, LessThan m n) => LessThan (Succ m) (Succ n)
-instance (LessThan m n) => LessThan m (Succ n)
-instance (Container Int n, Container Int m, LessThan (Succ m) (Succ n)) => LessThan m n
-
-class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) => MultiIndex dim ii i | ii -> dim, ii -> i
-
-{-
-class (Ix ii, Ix i, Container Int dim) => MultiIndex dim ii i | ii -> i where
-	to :: (Container Int n, LessThan n dim)=> n -> ii -> i
-	fromTuple :: [i] -> ii
--}
-
-class (BoundedCT m bounds ii, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) => Matrix m ii i a bounds
-
---reduceDim :: (LessThan n (Succ dim), MultiIndex (Succ dim) ii i, MultiIndex dim ii' i, FromFunction f ii a, ToFunction f ii' a) => n -> f -> f'
---reduceDim :: forall n l l' f f' ii ii' a size . (FromListCT l' ii' size, ToListCT l ii (Succ size), LessThan n (Succ size), ToFunction f ii a, FromFunction f' ii' a) => n -> f -> f'
---reduceDim :: (FromListCT l' ii size, ToListCT l ii (Succ size),LessThan n (Succ size), ToFunction f (l -> l') a,FromFunction f' ii a) =>n -> f -> f'
-
 reduceDim :: forall n dim m m' ii ii' i a . (LessThan n (Succ dim), MultiIndex (Succ dim) ii i, MultiIndex dim ii' i, FromFunction m' ii' a, ToFunction m ii a) => n -> i -> m -> m'
 reduceDim n i f = fromFunction func'
 	where
@@ -128,12 +131,13 @@ reduceDim n i f = fromFunction func'
 
 --mMatrMul :: forall f g h ii i a n . (Container Int n, Num a, MultiIndex N2 ii i, Matrix f ii i a (n,n), Matrix g ii i a (n,n), Matrix h ii i a (n,n)) => f -> g -> h
 --mMatrMul :: forall f g h ii i a l m n . (Num a, Ix ii, MultiIndex N2 ii i, BoundedCT f (l,m) ii, BoundedCT g (m,n) ii, BoundedCT h (l,n) ii, ToFunction f ii a, ToFunction g ii a, FromFunction h ii a) => f -> g -> h
-mMatrMul :: forall f g h ii i a . (MultiIndex N2 ii i, ToFunction f ii a, ToFunction g ii a, FromFunction h ii a, Num a) =>f -> g -> h
+--mMatrMul :: forall f g h ii i a . (MultiIndex N2 ii i, ToFunction f ii a, ToFunction g ii a, FromFunction h ii a, Num a) =>f -> g -> h
+mMatrMul :: (Num y, ListCT x t N2, ToFunction f x y, ToFunction f1 x y,FromFunction f2 x y) =>f1 -> f -> f2
 mMatrMul f g = fromFunction res
 	where
 		res ii = funcF ii + funcG ii --funcF (row,col) * funcG col (row,col)
 			where
-				(row :: i, col :: i) = (get n0 ii,  get n1 ii)
+				(row, col) = (get n0 ii,  get n1 ii)
 		funcF = (toFunction f)
 		funcG = (toFunction g)
 
@@ -142,14 +146,6 @@ mScalarMult s v = fromFunction f
 	where
 		f i = s * (toFunction v) i
 
-class (Container Int size) => ToListCT l a size | l -> a, l -> size where
-	toListCT :: l -> [a]
-
-class (Container Int size) => FromListCT l a size | l -> a, l -> size where
-	fromListCT :: [a] -> l
-
-class ListCT l a size | l -> a, l -> size where	
-	get :: (Container Int n) => n -> l -> a
 
 --insertCT :: forall a b la lb size . (ToListCT la a size, FromListCT lb b (Succ size)) => ([a] -> [b]) -> la -> lb
 --consCT :: (Container Int size, ToListCT la a size, FromListCT lb a (Succ size)) => a -> la -> lb
