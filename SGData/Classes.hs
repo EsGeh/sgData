@@ -13,21 +13,21 @@ import Data.Maybe(fromJust)
 class UpBounded l i | l -> i where
 	upperBound :: l -> i
  -- ct
-class (Ix i, Container i size) => UpBoundedCT l size i | l -> size, l -> i where
+class (Ix i, Container i size) => UpBoundedCT l i size | l -> size, l -> i where
 --class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- down bounded: 
 class DownBounded l i | l -> i where
 	lowerBound :: l -> i
  -- ct
-class (Ix i, Container i size) => DownBoundedCT l size i | l -> size, l -> i where
+class (Ix i, Container i size) => DownBoundedCT l i size | l -> size, l -> i where
 --class (Reifies size Int) => UpBoundedCT l size i | l -> size, l -> i where
 
 -- has upper and lower boundaries:
 class BoundedCont l i | l -> i where
 	bounds :: l -> (i,i)
 
-class (Ix i, Container (i,i) bounds ) => BoundedCT l bounds i | l -> bounds, l -> i
+class (Ix i, Container (i,i) bounds ) => BoundedCT l i bounds | l -> bounds, l -> i
 
 -- homomorphism: (x -> y) |-->  f
 class FromFunction f x y | f -> x, f -> y where
@@ -65,7 +65,7 @@ instance (ToListCT l a size) => ListCT l a size where
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
 	MultiIndex dim ii i | ii -> dim, ii -> i
 
-class (BoundedCT m bounds ii, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) =>
+class (BoundedCT m ii bounds, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) =>
 	Matrix m ii i a bounds | m -> ii, m -> a, m -> bounds
 
 -- to be moved to SGCard:

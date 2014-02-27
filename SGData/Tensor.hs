@@ -30,7 +30,7 @@ instance (Ix i, Container (i,i) bounds) => FromFunction (Tensor i a bounds) i a 
 instance (Ix i, Container (i,i) bounds) => ToFunction (Tensor i a bounds) i a where
 	toFunction (T a) i = a ! i
 
-instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) bounds i
+instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) i bounds
 
 tensor :: forall i a bounds . (Ix i, Container (i,i) bounds) => bounds -> (i -> a) -> Tensor i a bounds
 tensor bounds f = fromFunction f
