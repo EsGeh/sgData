@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, FlexibleContexts, ScopedTypeVariables, UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 module SGData.Classes where
 
 import SGCard
@@ -46,19 +46,20 @@ class (Container Int size) => FromListCT l a size | l -> a, l -> size where
 class ListCT l a size | l -> a, l -> size where	
 	get :: (LessThan n size) => n -> l -> a
 
+-- tuples as ListCTs
 --instance ToListCT a a N1 where toListCT = id
 instance ToListCT (a,a) a N2 where toListCT (x,y) = [x,y]
 instance ToListCT (a,a,a) a N3 where toListCT (x,y,z) = [x,y,z]
 instance FromListCT (a,a) a N2 where fromListCT [x,y] = (x,y)
 instance FromListCT (a,a,a) a N3 where fromListCT [x,y,z] = (x,y,z)
 
-{-
-instance (Ix a) => MultiIndex N2 (a,a) a
-instance (Ix a) => MultiIndex N1 a a
--}
+-- Make ListCTs instances of Ix
 
+-- this would be nice, but needs compiler flag "-UndecidableInstances", which is considered dangerous...
+{-
 instance (ToListCT l a size) => ListCT l a size where
 	get n l = toListCT l !! fromCard n
+-}
 
 -- these are just shortcuts:
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
