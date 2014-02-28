@@ -52,6 +52,8 @@ instance ToListCT (a,a) a N2 where toListCT (x,y) = [x,y]
 instance ToListCT (a,a,a) a N3 where toListCT (x,y,z) = [x,y,z]
 instance FromListCT (a,a) a N2 where fromListCT [x,y] = (x,y)
 instance FromListCT (a,a,a) a N3 where fromListCT [x,y,z] = (x,y,z)
+instance ListCT (a,a) a N2 where get n l = toListCT l !! fromCard n
+instance ListCT (a,a,a) a N3 where get n l = toListCT l !! fromCard n
 
 -- Make ListCTs instances of Ix
 
@@ -68,10 +70,6 @@ class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
 class (BoundedCT m ii bounds, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) =>
 	Matrix m ii i a bounds | m -> ii, m -> a, m -> bounds
 
--- to be moved to SGCard:
-class (Container Int n, Container Int m) => LessThan n m 
-instance (Container Int n) => LessThan Zero (Succ n)
-instance (LessThan n m) => LessThan (Succ n) (Succ m)
 
 
 --instance BoundedCT c (min,max) i => (DownBoundedCT c min i) where
@@ -131,6 +129,7 @@ mDiv = mOp (/)
 
 
 reduceDim :: forall n dim m m' ii ii' i a . (LessThan n (Succ dim), MultiIndex (Succ dim) ii i, MultiIndex dim ii' i, FromFunction m' ii' a, ToFunction m ii a) => n -> i -> m -> m'
+--reduceDim :: (LessThan n N2, Matrix m ii i a (min,max), ListCT m' a ) => n -> i -> m -> m'
 reduceDim n i f = fromFunction func'
 	where
 		func' :: ii' -> a

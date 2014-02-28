@@ -1,93 +1,46 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 
-import SGData
 import SGCard
-import Data.Maybe(fromJust)
+import SGData.Classes
+import SGData.Tensor
+import SGData.ListStatic
+
 import Data.Reflection
-import Data.Proxy
 
-import Data.Array
+import Data.Maybe(fromJust)
 
-data ListCTSize a size = ListCTSize { fromTestList :: [a] }
-	deriving( Eq, Ord )
-
-instance (Show size, Show a) => Show (ListCTSize a size) where
-	show l = {-show (undefined :: size) ++ -} show (fromTestList l)
-
-createTestList :: forall a size . (Container Int size) => [a] -> Maybe (ListCTSize a size)
-createTestList list = takeSafe (fromContainer (undefined :: size)) list >>= return . ListCTSize
 
 {-
-test' i = withInt i func
-
-func :: forall n . (Card n) => n -> Maybe String
-func n = do 
-	list <- (createTestList [1..] :: Maybe (ListCTSize Int n))
-	return $ show $ (list `mAdd` list)
--}
-
-instance (Container Int size) => UpBoundedCT (ListCTSize a size) Int size 
-instance (Container Int size) => BoundedCT (ListCTSize a size) Int (N0,size)
-instance (Container Int size) => ToListCT (ListCTSize a size) a size where
-	toListCT = fromTestList
-instance (Container Int size) => FromListCT (ListCTSize a size) a size where
-	fromListCT = ListCTSize
-
-instance (Container Int size) => ToFunction (ListCTSize a size) Int a where
-	toFunction l i = case i < fromContainer (undefined :: size) of
-		False -> error "index error"
-		True -> fromTestList l !! i
-instance (Container Int size) => FromFunction (ListCTSize a size) Int a where
-	fromFunction f = fromJust $ createTestList [ f i | i <- [0..(fromContainer (undefined :: size)-1)] ]
-
---instance (Container (Int,Int) bounds) => Container (ListCTSize Int size, ListCTSize Int size) bounds
-
---data WrapRange = 
-
-
-instance (Container a size) => ListCT (ListCTSize a size) a size where
-	get n l = toListCT l !! fromContainer n
-
-instance Ix (ListCTSize Int N2) where
-	range (l,r) = map (fromListCT . listFromTuple) $ range (l', r')
-		where
-			(l',r') = ((get n0 l, get n1 l), (get n0 r, get n1 r))
-			listFromTuple (x,y) = [x,y]
-	index (l,r) i = index (l',r') i'
-		where
-			(l',r') = ((get n0 l, get n1 l), (get n0 r, get n1 r))
-			i' = (get n0 i, get n1 i)
-	inRange (l,r) i = inRange (l',r') i'
-		where
-			(l',r') = ((get n0 l, get n1 l), (get n0 r, get n1 r))
-			i' = (get n0 i, get n1 i)
-
-instance Ix (ListCTSize Int N1) where
-	range (l,r) = map (fromListCT . listFromTuple) $ range (l', r')
-		where
-			(l',r') = ((get n0 l), (get n0 r))
-			listFromTuple x = [x]
-	index (l,r) i = index (l',r') i'
-		where
-			(l',r') = ((get n0 l), (get n0 r))
-			i' = get n0 i
-	inRange (l,r) i = inRange (l',r') i'
-		where
-			(l',r') = ((get n0 l), (get n0 r))
-			i' = get n0 i
-
-type Index n = ListCTSize Int n
+type Index n = ListStatic Int n
 type Index2 n = (Index n, Index n)
 type Index3 n = (Index n, Index n, Index n)
 
-instance MultiIndex N2 (ListCTSize Int N2) Int
-instance MultiIndex N1 (ListCTSize Int N1) Int
+instance MultiIndex N2 (ListStatic Int N2) Int
+instance MultiIndex N1 (ListStatic Int N1) Int
+-}
 
-t :: (Container (Index2 N2) bounds) => bounds -> Tensor (Index N2) Int bounds
-t bounds = tensor range f 
+reduceDim :: forall n dim m m' ii ii' i a . (LessThan n N2, Matrix m ii a, ListCT m' ii' ) => n -> i -> m -> m'
+--reduceDim :: forall n dim m m' ii ii' i a . (LessThan n N2, FromFunction m' ii' a, ToFunction m ii a) => n -> i -> m -> m'
+redDim n i m = fromFunction func'
+	where
+		func' :: ii' -> a
+		func' ii' = func ii
+			where
+				ii = insertCT n i ii'
+		func = (toFunction m)
+
+--t :: (Container Int dim, MultiIndex dim ii i, Container (ii,ii) bounds) => bounds -> Tensor ii Int bounds
+t :: Container ((Int,Int),(Int,Int)) bounds =>bounds -> Tensor (Int,Int) Int bounds
+t bounds = tensor bounds f 
 	where
 		f ii = (get n0 ii) + (get n1 ii)
-		range = undefined --(fromListCT [n0,n0], fromListCT [n2,n2]) -- :: (ListCTSize Int N2, ListCTSize Int N2)
+		--range = undefined --(fromListCT [n0,n0], fromListCT [n2,n2]) -- :: (ListStatic Int N2, ListStatic Int N2)
+
+--redTensor :: (LessThan n N2)=> n -> Int -> Tensor (Index N2) Int (Index2 N2) -> Tensor (Index N1) Int (Index2 N1)
+redTensor n i t = fromFunction $ reduce n i $ toFunction t
+	where
+		--reduce :: n -> i -> (ii -> Int) -> (ii' -> Int)
+		reduce = undefined
 
 {-
 testX = reify (((create2 0 0), (create2 2 2)) :: Index2 N2) (show . f) 
@@ -98,25 +51,30 @@ testX = reify (((create2 0 0), (create2 2 2)) :: Index2 N2) (show . f)
 		temp bounds = t bounds {-:: Tensor (Index2 N2) Int bounds-}
 -}
 
-instance Container (Proxy (Index2 N2)) bounds
+--instance Container (Proxy (Index2 N2)) bounds
 
-usesRedDim :: (Reifies bounds (Index2 N2)) => Tensor (Index N2) Int bounds
-usesRedDim = reduceDim n0 0 $ undefined
+--usesRedDim :: (Container (Index2 N1) bounds) => Tensor (Index N1) Int bounds
+--usesRedDim :: (Reifies bounds (Index2 N2) ) => bounds -> Tensor (Index N1) Int (Index2 N1)
+{-usesRedDim :: (Container (Index2 N1) bounds) => bounds -> Tensor (Index N1) Int bounds
+usesRedDim bounds = redTensor n0 0 $ tensor (fromContainer bounds) (\i -> (get n0 i) + (get n1 i))-- (undefined :: Tensor (Index N2) Int (N0,N2))-}
 
 
-create1 :: a -> ListCTSize a N1
-create1 x = fromJust $ createTestList [x]
+create1 :: a -> ListStatic a N1
+create1 x = fromJust $ listStatic [x]
 
-create2 :: a -> a -> ListCTSize a N2
-create2 x y = fromJust $ createTestList [x,y]
+create2 :: a -> a -> ListStatic a N2
+create2 x y = fromJust $ listStatic [x,y]
 
-test' :: forall n . Container Int n => n -> ListCTSize Int n
+test' :: forall n . Container Int n => n -> ListStatic Int n
 test' _ = fromJust $ do
-	l <- (createTestList [1..] :: Maybe (ListCTSize Int n))
-	r <- (createTestList [1..] :: Maybe (ListCTSize Int n))
+	l <- (listStatic [1..] :: Maybe (ListStatic Int n))
+	r <- (listStatic [1..] :: Maybe (ListStatic Int n))
 	return $ l |+| r
 
 test1 = test' n1
 test6 = test' n6
 
 testNicer = reify 10 (show . test')
+
+testNicer' = reify (10,20) (show . fromContainer)
+testNicer'' = reify (create2 1 2) (show . fromContainer)

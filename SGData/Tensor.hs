@@ -1,5 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables, UndecidableInstances #-}
 module SGData.Tensor where
 
 --import SGData.Card2
@@ -32,14 +32,19 @@ instance (Ix i, Container (i,i) bounds) => ToFunction (Tensor i a bounds) i a wh
 
 instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) i bounds
 
+-- just to make shure:
+instance (MultiIndex N2 ii i, Container (ii,ii) bounds) => Matrix (Tensor ii a bounds) ii i a bounds
+
 tensor :: forall i a bounds . (Ix i, Container (i,i) bounds) => bounds -> (i -> a) -> Tensor i a bounds
 tensor bounds f = fromFunction f
 
 
+--instance (Reifies config i) => Container i (Proxy config)
+
 testTensor :: Tensor (Int,Int) Int ((N0,N0),(N2,N2))
 testTensor = fromFunction (\(x,y) -> x+y) 
 
-testOneDim f = reify (0,4) func -- this opens a context, in which bounds are statically fixed
+testOneDim f = reify ((0,4) :: (Int,Int)) func -- this opens a context, in which bounds are statically fixed
 	where
 		func bounds = show $ 2 *| (tensor bounds f)
 
