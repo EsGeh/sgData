@@ -156,7 +156,7 @@ mScalarMult s v = fromFunction f
 
 --insertCT :: forall a b la lb size . (ToListCT la a size, FromListCT lb b (Succ size)) => ([a] -> [b]) -> la -> lb
 --consCT :: (Container Int size, ToListCT la a size, FromListCT lb a (Succ size)) => a -> la -> lb
-consCT :: (FromListCT l a size, ToListCT l1 a (Succ size)) => a -> l1 -> l
+consCT :: (Container Int size, FromListCT l' a (Succ size), ToListCT l a size) => a -> l -> l'
 consCT x list = fromListCT $ x:(toListCT list)
 
 
@@ -166,44 +166,6 @@ insertCT n x = fromListCT . insert x . toListCT
 		insert :: a -> [a] -> [a]
 		insert x l = take i l ++ [x] ++ drop i l
 		i = fromContainer n
-
-
-
-{-
-class Listable l a | l -> a where
-	toList :: l -> [a]
-
-class FromListable l a | l -> a where
-	fromList :: [a] -> l
-
-class (Card size, Listable l a) => ListableCT size l a | l size -> a where
-
---instance Listable (a) a where toList (a1) = [a1]
-instance Listable (a,a) a where toList (a1,a2) = [a1, a2]
-instance Listable (a,a,a) a where toList (a1,a2,a3) = [a1, a2, a3]
-instance Listable (a,a,a,a) a where toList (a1,a2,a3,a4) = [a1, a2, a3, a4]
-instance Listable (a,a,a,a,a) a where toList (a1,a2,a3,a4,a5) = [a1, a2, a3, a4, a5]
-instance Listable (a,a,a,a,a, a) a where toList (a1,a2,a3,a4,a5,a6) = [a1, a2, a3, a4, a5, a6]
-
-instance Listable [a] a where
-	toList l = l
-
-{-
-instance ListableCT N2 (a,a) a where
-instance ListableCT N3 (a,a,a) a 
-instance ListableCT N4 (a,a,a,a) a 
-instance ListableCT N5 (a,a,a,a,a) a 
-instance ListableCT N6 (a,a,a,a,a, a) a 
--}
-
-{-
-instance ListableCT N2 (a,a) a where
-instance ListableCT N3 (a,a,a) a 
-instance ListableCT N4 (a,a,a,a) a 
-instance ListableCT N5 (a,a,a,a,a) a 
-instance ListableCT N6 (a,a,a,a,a, a) a 
--}
--}
 
 takeSafe n list = let l = take n list in
 	if length l == n
