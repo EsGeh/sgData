@@ -15,12 +15,14 @@ data ListStatic a size = ListStatic { fromListStatic :: [a] }
 listStatic :: forall a size . (Container Int size) => [a] -> Maybe (ListStatic a size)
 listStatic list = takeSafe (fromContainer (undefined :: size)) list >>= return . ListStatic
 
+{-
 data ReifyStaticList1 x1 = ReifyStaticList1 { sl1_x1 :: x1 }
 data ReifyStaticList2 x1 x2 = ReifyStaticList2 { sl2_x1 :: x1, sl2_x2 :: x2 }
 
 -- how else could I encode static lists?!
 instance (Container t l, Container t r) => Container (ListStatic t N2) (ReifyStaticList2 l r) where
 	fromContainer tuple = fromListCT [ fromContainer $ sl2_x1 tuple, fromContainer $ sl2_x2 tuple ]
+-}
 
 
 instance (Container Int size, Show a) => Show (ListStatic a size) where
@@ -34,7 +36,8 @@ instance (Container Int size) => BoundedCT (ListStatic a size) Int (N0,size)
 instance (Container Int size) => ToListCT (ListStatic a size) a size where
 	toListCT = fromListStatic
 instance (Container Int size) => FromListCT (ListStatic a size) a size where
-	fromListCT = ListStatic
+	fromListCT = fromJust . listStatic
+	--fromListCT = ListStatic
 instance (Container a size) => ListCT (ListStatic a size) a size where
 	get n l = toListCT l !! fromContainer n
 

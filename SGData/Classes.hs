@@ -66,10 +66,13 @@ instance (ToListCT l a size) => ListCT l a size where
 -- these are just shortcuts:
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
 	MultiIndex dim ii i | ii -> dim, ii -> i
+class (MultiIndex dim ii i, MultiIndex dim' ii' i) => IndexChangeDim dim dim' ii ii' i | dim dim' ii -> ii'
 
-class (BoundedCT m ii bounds, MultiIndex N2 ii i, ToFunction m ii a, FromFunction m ii a) =>
-	Matrix m ii i a bounds | m -> ii, m -> a, m -> bounds
+class (BoundedCT t ii bounds, MultiIndex dim ii i, ToFunction t ii a, FromFunction t ii a) =>
+	TensorClass dim t ii i a bounds | t -> ii, t -> a, t -> bounds
 
+class (TensorClass N2 m ii i a bounds) =>
+	Matrix m ii i a bounds
 
 
 --instance BoundedCT c (min,max) i => (DownBoundedCT c min i) where
