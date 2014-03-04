@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, FunctionalDependencies, UndecidableInstances #-}
 module SGData.ListStatic where
 
-import SGData
+--import SGData
+import SGData.Classes
 import SGCard
 import Data.Maybe(fromJust)
 import Data.Reflection
@@ -23,6 +24,10 @@ data ReifyStaticList2 x1 x2 = ReifyStaticList2 { sl2_x1 :: x1, sl2_x2 :: x2 }
 instance (Container t l, Container t r) => Container (ListStatic t N2) (ReifyStaticList2 l r) where
 	fromContainer tuple = fromListCT [ fromContainer $ sl2_x1 tuple, fromContainer $ sl2_x2 tuple ]
 -}
+
+-- Static lists as index
+instance MultiIndex N1 (ListStatic Int N1) Int
+instance MultiIndex N2 (ListStatic Int N2) Int
 
 
 instance (Container Int size, Show a) => Show (ListStatic a size) where
@@ -77,3 +82,9 @@ instance Ix (ListStatic Int N1) where
 		where
 			(l',r') = ((get n0 l), (get n0 r))
 			i' = get n0 i
+
+
+takeSafe n list = let l = take n list in
+	if length l == n
+		then Just l
+		else Nothing 

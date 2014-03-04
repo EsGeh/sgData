@@ -4,6 +4,7 @@ module SGData.Tensor where
 
 --import SGData.Card2
 import SGData.Classes
+import SGData.Functions
 
 import SGCard
 
@@ -34,6 +35,8 @@ instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) i bound
 
 -- just to make shure:
 instance (Container Int dim, MultiIndex dim ii i, Container (ii,ii) bounds) => TensorClass dim (Tensor ii a bounds) ii i a bounds
+
+instance (MultiIndex N2 ii i, Container (ii,ii) bounds) => MatrixClass (Tensor ii a bounds) ii i a bounds
 
 tensor :: forall i a bounds . (Ix i, Container (i,i) bounds) => bounds -> (i -> a) -> Tensor i a bounds
 tensor bounds f = fromFunction f
