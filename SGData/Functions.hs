@@ -5,7 +5,22 @@ import SGData.Classes
 
 import SGCard
 import Data.Array
+--import Data.Foldable
 
+
+zipWithCT f l r = foldlCT (\(l,r) -> f l r) $ zipCT l r
+
+zipCT :: (FromListCT lr (a, b) size, ToListCT l a size, ToListCT r b size) => l -> r -> lr 
+zipCT l r = fromListCT $ (toListCT l) `zip` (toListCT r)
+
+
+foldlCT ::  ToListCT l b size => (a -> b -> a) -> a -> l -> a
+foldlCT f z l = foldl f z (toListCT l)
+
+{-
+instance (ListCT l a size) => Foldable l  where
+	foldMap f l = undefined
+-}
 
 class (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsContainer i a b c d
 instance  (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsContainer i a b c d
@@ -55,7 +70,6 @@ mMul = mOp (*)
 mDiv :: (Fractional a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mDiv = mOp (/)
 
-
 row :: (
 	MultiIndex N2 ii i, --FromListCT ii i (Succ dim),
 	MultiIndex N1 ii' i, --ToListCT ii' i dim,
@@ -64,7 +78,6 @@ row :: (
 	=>
 	i -> f -> f'
 row = redDim n0
-
 
 col :: (
 	MultiIndex N2 ii i, --FromListCT ii i (Succ dim),
