@@ -5,6 +5,7 @@ module SGData.Tensor where
 --import SGData.Card2
 import SGData.Classes
 import SGData.Functions
+import SGData.Tuple
 
 import SGCard
 
@@ -38,12 +39,24 @@ instance (Container Int dim, MultiIndex dim ii i, Container (ii,ii) bounds) => T
 
 instance (MultiIndex N2 ii i, Container (ii,ii) bounds) => MatrixClass (Tensor ii a bounds) ii i a bounds
 
+
+mTensorInt :: (MatrBoundsContainer Int rowMin colMin rowMax colMax) => (rowMin,colMin) -> (rowMax, colMax) -> ((Int,Int) -> a) -> Matr Int a (rowMin,colMin) (rowMax, colMax)
+mTensorInt lower upper f = m lower upper f 
+
+
+type Matr i a lower upper = Tensor (i,i) a (lower,upper)
+type Vector i a lower upper = Tensor i a (lower, upper)
+
+
+{-
 tensor :: forall i a bounds . (Ix i, Container (i,i) bounds) => bounds -> (i -> a) -> Tensor i a bounds
 tensor bounds f = fromFunction f
+-}
 
 
 --instance (Reifies config i) => Container i (Proxy config)
 
+{-
 testTensor :: Tensor (Int,Int) Int ((N0,N0),(N2,N2))
 testTensor = fromFunction (\(x,y) -> x+y) 
 
@@ -54,3 +67,4 @@ testOneDim f = reify ((0,4) :: (Int,Int)) func -- this opens a context, in which
 testTwoDim f = reify (((0,0),(4,4)) :: ((Int,Int),(Int,Int))) func -- this opens a context, in which bounds are statically fixed
 	where
 		func bounds = show $ tensor bounds f
+-}
