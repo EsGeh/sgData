@@ -8,11 +8,12 @@ import Data.Array
 --import Data.Foldable
 
 
-zipWithCT f l r = foldlCT (\(l,r) -> f l r) $ zipCT l r
+zipWithCT :: (FromListCT lr c size, ToListCT l a size,ToListCT r b size) =>(a -> b -> c) -> l -> r -> lr 
+zipWithCT f l r = fromListCT $ zipWith f (toListCT l) (toListCT r)
 
-zipCT :: (FromListCT lr (a, b) size, ToListCT l a size, ToListCT r b size) => l -> r -> lr 
-zipCT l r = fromListCT $ (toListCT l) `zip` (toListCT r)
-
+--zipCT :: (FromListCT lr (a, b) size, ToListCT l a size, ToListCT r b size) => l -> r -> lr 
+zipCT :: (FromListCT lr (a,b) size, ToListCT l a size,ToListCT r b size) => l -> r -> lr 
+zipCT = zipWithCT (,) --fromListCT $ (toListCT l) `zip` (toListCT r)
 
 foldlCT ::  ToListCT l b size => (a -> b -> a) -> a -> l -> a
 foldlCT f z l = foldl f z (toListCT l)
@@ -96,17 +97,6 @@ redDim :: (
 	FromFunction f' ii' y)
 	=>
 	n -> i -> f -> f'
-{-
-redDim :: (
-	LessThan n (Succ dim),
-	MultiIndex (Succ dim) ii i,
-	MultiIndex dim ii' i,
-	ToFunction f ii y,
-	FromListCT f' ii' y)
-	=>
-	n -> i -> f -> f'
--}
-	
 --most general type:
 --redDim :: (LessThan n (Succ dim), FromListCT ii i (Succ dim),ToListCT ii' i dim, ToFunction f ii y, FromFunction f' ii' y) =>n -> i -> f -> f'
 redDim n i m = fromFunction func'
@@ -114,33 +104,25 @@ redDim n i m = fromFunction func'
 		func' ii =  (toFunction m) (insertCT n i ii)
 
 {-
-selRow ::(Ix i, MatrBoundsContainer i a b c d, MatrixClass m (i,i) i x ((a,b),(c,d)), TensorClass N1 m' i i x (a,c))
-	=> (a,b) -> (c,d) -> i -> m -> m'
-selRow (a,b) (c,d) i m = fromFunction func'
-	where
-		func' ii =  (toFunction m) (insertCT n0 i ii)
--}
-
-{-
-reduceDim :: forall n dim m m' ii ii' i a . (LessThan n (Succ dim), MultiIndex (Succ dim) ii i, MultiIndex dim ii' i, FromFunction m' ii' a, ToFunction m ii a) => n -> i -> m -> m'
---reduceDim :: (LessThan n N2, Matrix m ii i a (min,max), ListCT m' a ) => n -> i -> m -> m'
-reduceDim n i f = fromFunction func'lea helmers
-	where
-		func' :: ii' -> a
-		func' ii' = func ii
-			where
-				ii = insertCT n i ii'
-		func = (toFunction f)
--}
-
---mMatrMul :: (Num y, ListCT x t N2, ToFunction f x y, ToFunction f1 x y,FromFunction f2 x y) =>f1 -> f -> f2
+mMatrMul :: forall y l r res u v w . (
+	Num y, -- LessThan N0 dim, LessThan N1 dim,
+	--MultiIndex dim ii i,
+	MatrixClass l (Int,Int) Int y ((N0,N0),(u,v)), 
+	MatrixClass r (Int,Int) Int y ((N0,N0),(v,w)), 
+	MatrixClass res (Int,Int) Int y ((N0,N0),(u,w)))
+	=>
+	l -> r -> res 
 mMatrMul f g = fromFunction res
 	where
-		res ii = funcF ii + funcG ii --funcF (row,col) * funcG col (row,col)
+		res :: (Int,Int) -> y
+		res ii = foldlCT 0 (+) $ zipWithCT (*) (col iCol f) (row iRow g)
+
+			--funcF (row,col) * funcG col (row,col)
 			where
-				(row, col) = (get n0 ii,  get n1 ii)
+				(iRow, iCol) = (get n0 ii,  get n1 ii)
 		funcF = (toFunction f)
 		funcG = (toFunction g)
+-}
 
 mScalarMult :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => a -> f -> f
 mScalarMult s v = fromFunction f
