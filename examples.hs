@@ -3,12 +3,19 @@
 import SGCard
 import SGData
 
---import Data.Array
+import Data.Array
 
 import Data.Reflection
 import Data.Proxy
 
 import Data.Maybe(fromJust)
+
+
+testMatrMul :: Matr Int Int (N0,N0) (N1,N1)
+testMatrMul = mMatrMul a b 
+	where
+		a = mFromList (n0,n0) (n1,n2) [[3,2,1],[1,0,2]] :: Matr Int Int (N0,N0) (N1,N2)
+		b = mFromList (n0,n0) (n2,n1) [[1,2],[0,1],[4,0]] :: Matr Int Int (N0,N0) (N2,N1)
 
 
 test3 = reifyMatrBounds 0 0 2 2 (\l r-> show $ f l r)
@@ -20,7 +27,6 @@ test3 = reifyMatrBounds 0 0 2 2 (\l r-> show $ f l r)
 			(\(x,y) -> x*y) 
 			where 
 				matr = mTensorInt (a, b) (c, d)
-
 
 
 test2' = reify4 0 0 2 2 (\a b c d -> show $ f (a, b) (c, d))

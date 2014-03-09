@@ -7,11 +7,43 @@ import SGData.Classes
 import SGData.Functions
 import SGData.Tuple
 
+import SGData.ListStatic
+
 import SGCard
 
 import Data.Array
 import Data.Reflection
 import Data.Proxy
+
+
+
+
+-- TODO: Type-Check
+mFromList :: (
+		MatrBoundsContainer Int a b c d,
+		MatrixClass m (Int, Int) Int y ((a,b), (c,d))
+	)
+	=>
+	(a,b) -> (c,d) -> [[y]] -> m
+mFromList l r list = m l r (f list)
+	where
+		f list (row,col) = list !! row !! col
+
+
+mMatrMul :: forall y l r res u v w . (
+	Num y, -- LessThan N0 dim, LessThan N1 dim,
+	Container Int u, Container Int v, Container Int w,
+	MatrixClass l (Int,Int) Int y ((N0,N0),(u,v)), 
+	MatrixClass r (Int,Int) Int y ((N0,N0),(v,w)), 
+	MatrixClass res (Int,Int) Int y ((N0,N0),(u,w)))
+	=>
+	l -> r -> res 
+mMatrMul f g = fromFunction $ res
+	where
+		res (irow,icol) = foldlCT (+) 0 $ --temp f g (iRow,iCol)
+			(zipWithCT (*)
+				(row irow f :: ListStatic y (Succ v))
+				(col icol g :: ListStatic y (Succ v)) :: ListStatic y (Succ v))
 
 newtype Tensor i a bounds = T { fromTensor :: Array i a }
 	deriving( Show )

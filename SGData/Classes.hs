@@ -55,10 +55,15 @@ instance (ToListCT l a size) => ListCT l a size where
 	get n l = toListCT l !! fromCard n
 -}
 
+{-
+class (Ix i, Container i dim) => MultiIndex i ii dim | i dim -> ii, (ii dim) -> dim, (ii dim) -> i where
+	multiIndex :: dim -> ii dim
+	dim :: ii dim -> dim
+-}
+
 -- these are just shortcuts:
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
 	MultiIndex dim ii i | ii -> dim, ii -> i
-class (MultiIndex dim ii i, MultiIndex dim' ii' i) => IndexChangeDim dim dim' ii ii' i | dim dim' ii -> ii'
 
 class (BoundedCT t ii bounds, MultiIndex dim ii i, ToFunction t ii a, FromFunction t ii a) =>
 	TensorClass dim t ii i a bounds | t -> ii, t -> a, t -> bounds

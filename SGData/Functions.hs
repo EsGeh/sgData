@@ -5,6 +5,7 @@ import SGData.Classes
 
 import SGCard
 import Data.Array
+import SGData.ListStatic
 --import Data.Foldable
 
 
@@ -31,6 +32,21 @@ reifyMatrBounds a b c d f = reify4 a b c d (\a b c d -> f (a,b) (c,d))
 
 m :: (Ix i, Container i a, Container i b, Container i c, Container i d, MatrixClass m (i,i) i x ((a,b),(c,d))) => (a, b) -> (c, d) -> ((i,i) -> x) -> m
 m (a, b) (c, d) f = fromFunction f
+
+
+redDim :: (
+	LessThan n (Succ dim),
+	MultiIndex (Succ dim) ii i, --FromListCT ii i (Succ dim),
+	MultiIndex dim ii' i, --ToListCT ii' i dim,
+	ToFunction f ii y,
+	FromFunction f' ii' y)
+	=>
+	n -> i -> f -> f'
+--most general type:
+--redDim :: (LessThan n (Succ dim), FromListCT ii i (Succ dim),ToListCT ii' i dim, ToFunction f ii y, FromFunction f' ii' y) =>n -> i -> f -> f'
+redDim n i m = fromFunction func'
+	where
+		func' ii =  (toFunction m) (insertCT n i ii)
 
 
 infixl 8 |+|
@@ -89,40 +105,6 @@ col :: (
 	i -> f -> f'
 col = redDim n1
 
-redDim :: (
-	LessThan n (Succ dim),
-	MultiIndex (Succ dim) ii i, --FromListCT ii i (Succ dim),
-	MultiIndex dim ii' i, --ToListCT ii' i dim,
-	ToFunction f ii y,
-	FromFunction f' ii' y)
-	=>
-	n -> i -> f -> f'
---most general type:
---redDim :: (LessThan n (Succ dim), FromListCT ii i (Succ dim),ToListCT ii' i dim, ToFunction f ii y, FromFunction f' ii' y) =>n -> i -> f -> f'
-redDim n i m = fromFunction func'
-	where
-		func' ii =  (toFunction m) (insertCT n i ii)
-
-{-
-mMatrMul :: forall y l r res u v w . (
-	Num y, -- LessThan N0 dim, LessThan N1 dim,
-	--MultiIndex dim ii i,
-	MatrixClass l (Int,Int) Int y ((N0,N0),(u,v)), 
-	MatrixClass r (Int,Int) Int y ((N0,N0),(v,w)), 
-	MatrixClass res (Int,Int) Int y ((N0,N0),(u,w)))
-	=>
-	l -> r -> res 
-mMatrMul f g = fromFunction res
-	where
-		res :: (Int,Int) -> y
-		res ii = foldlCT 0 (+) $ zipWithCT (*) (col iCol f) (row iRow g)
-
-			--funcF (row,col) * funcG col (row,col)
-			where
-				(iRow, iCol) = (get n0 ii,  get n1 ii)
-		funcF = (toFunction f)
-		funcG = (toFunction g)
--}
 
 mScalarMult :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => a -> f -> f
 mScalarMult s v = fromFunction f
