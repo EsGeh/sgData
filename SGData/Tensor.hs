@@ -16,8 +16,9 @@ import Data.Reflection
 import Data.Proxy
 
 
+-- matrix:
 
-
+-- |
 -- TODO: Type-Check
 mFromList :: (
 		MatrBoundsContainer Int a b c d,

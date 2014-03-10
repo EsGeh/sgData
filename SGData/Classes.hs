@@ -55,11 +55,6 @@ instance (ToListCT l a size) => ListCT l a size where
 	get n l = toListCT l !! fromCard n
 -}
 
-{-
-class (Ix i, Container i dim) => MultiIndex i ii dim | i dim -> ii, (ii dim) -> dim, (ii dim) -> i where
-	multiIndex :: dim -> ii dim
-	dim :: ii dim -> dim
--}
 
 -- these are just shortcuts:
 class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>

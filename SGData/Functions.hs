@@ -9,10 +9,22 @@ import SGData.ListStatic
 --import Data.Foldable
 
 
+-- | work with fixed size lists:
+
+consCT :: (Container Int size, FromListCT l' a (Succ size), ToListCT l a size) => a -> l -> l'
+consCT x list = fromListCT $ x:(toListCT list)
+
+
+insertCT :: (LessThan n (Succ size), FromListCT l' a (Succ size), ToListCT l a size) => n -> a -> l -> l'
+insertCT n x = fromListCT . insert x . toListCT
+	where
+		insert :: a -> [a] -> [a]
+		insert x l = take i l ++ [x] ++ drop i l
+		i = fromContainer n
+
 zipWithCT :: (FromListCT lr c size, ToListCT l a size,ToListCT r b size) =>(a -> b -> c) -> l -> r -> lr 
 zipWithCT f l r = fromListCT $ zipWith f (toListCT l) (toListCT r)
 
---zipCT :: (FromListCT lr (a, b) size, ToListCT l a size, ToListCT r b size) => l -> r -> lr 
 zipCT :: (FromListCT lr (a,b) size, ToListCT l a size,ToListCT r b size) => l -> r -> lr 
 zipCT = zipWithCT (,) --fromListCT $ (toListCT l) `zip` (toListCT r)
 
@@ -24,31 +36,24 @@ instance (ListCT l a size) => Foldable l  where
 	foldMap f l = undefined
 -}
 
+-- work with functions: 
+
 class (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsContainer i a b c d
 instance  (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsContainer i a b c d
 
 reifyMatrBounds :: Int -> Int -> Int -> Int -> (forall a b c d . (Container Int a, Container Int b, Container Int c, Container Int d) => (a,b) -> (c,d) -> res) -> res
 reifyMatrBounds a b c d f = reify4 a b c d (\a b c d -> f (a,b) (c,d))
 
+-- |generic matrix constructor
 m :: (Ix i, Container i a, Container i b, Container i c, Container i d, MatrixClass m (i,i) i x ((a,b),(c,d))) => (a, b) -> (c, d) -> ((i,i) -> x) -> m
 m (a, b) (c, d) f = fromFunction f
 
 
-redDim :: (
-	LessThan n (Succ dim),
-	MultiIndex (Succ dim) ii i, --FromListCT ii i (Succ dim),
-	MultiIndex dim ii' i, --ToListCT ii' i dim,
-	ToFunction f ii y,
-	FromFunction f' ii' y)
-	=>
-	n -> i -> f -> f'
---most general type:
---redDim :: (LessThan n (Succ dim), FromListCT ii i (Succ dim),ToListCT ii' i dim, ToFunction f ii y, FromFunction f' ii' y) =>n -> i -> f -> f'
-redDim n i m = fromFunction func'
-	where
-		func' ii =  (toFunction m) (insertCT n i ii)
 
-
+-- work with functions (not necessarily bounded!) :
+--
+--
+--
 infixl 8 |+|
 infixl 8 |-|
 infixl 8 |*|
@@ -87,6 +92,23 @@ mMul = mOp (*)
 mDiv :: (Fractional a, Ix i, ToFunction f i a, FromFunction f i a) =>f -> f -> f
 mDiv = mOp (/)
 
+
+mScalarMult :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => a -> f -> f
+mScalarMult s v = fromFunction f
+	where
+		f i = s * (toFunction v) i
+
+{-
+mRow :: (
+	MatrBoundsContainer (i,i) a b c d,
+	MatrixClass m (i,i) i y ((a,b),(c,d))
+	FromListCT i i (a,c)
+	)
+	=> i -> m -> l
+mRow = undefined
+-}
+
+-- extract rows/columns from a two dimensional indexable structure:
 row :: (
 	MultiIndex N2 ii i, --FromListCT ii i (Succ dim),
 	MultiIndex N1 ii' i, --ToListCT ii' i dim,
@@ -105,23 +127,17 @@ col :: (
 	i -> f -> f'
 col = redDim n1
 
-
-mScalarMult :: forall f i a . (Num a, Ix i, ToFunction f i a, FromFunction f i a) => a -> f -> f
-mScalarMult s v = fromFunction f
+-- extract orthonormal planes from a multi dimensionally indexable structure
+redDim :: (
+	LessThan n (Succ dim),
+	MultiIndex (Succ dim) ii i, --FromListCT ii i (Succ dim),
+	MultiIndex dim ii' i, --ToListCT ii' i dim,
+	ToFunction f ii y,
+	FromFunction f' ii' y)
+	=>
+	n -> i -> f -> f'
+--most general type would be:
+--redDim :: (LessThan n (Succ dim), FromListCT ii i (Succ dim),ToListCT ii' i dim, ToFunction f ii y, FromFunction f' ii' y) =>n -> i -> f -> f'
+redDim n i m = fromFunction func'
 	where
-		f i = s * (toFunction v) i
-
-
---insertCT :: forall a b la lb size . (ToListCT la a size, FromListCT lb b (Succ size)) => ([a] -> [b]) -> la -> lb
---consCT :: (Container Int size, ToListCT la a size, FromListCT lb a (Succ size)) => a -> la -> lb
-consCT :: (Container Int size, FromListCT l' a (Succ size), ToListCT l a size) => a -> l -> l'
-consCT x list = fromListCT $ x:(toListCT list)
-
-
-insertCT :: (LessThan n (Succ size), FromListCT l' a (Succ size), ToListCT l a size) => n -> a -> l -> l'
-insertCT n x = fromListCT . insert x . toListCT
-	where
-		insert :: a -> [a] -> [a]
-		insert x l = take i l ++ [x] ++ drop i l
-		i = fromContainer n
-
+		func' ii =  (toFunction m) (insertCT n i ii)
