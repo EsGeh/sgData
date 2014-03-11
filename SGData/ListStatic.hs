@@ -26,24 +26,24 @@ instance (Container t l, Container t r) => Container (ListStatic t N2) (ReifySta
 -}
 
 -- Static lists as index
-instance MultiIndex N1 (ListStatic Int N1) Int
-instance MultiIndex N2 (ListStatic Int N2) Int
+instance MultiIndex N0 N0 (ListStatic Int N1) Int
+instance MultiIndex N0 N1 (ListStatic Int N2) Int
 
 
 instance (Container Int size, Show a) => Show (ListStatic a size) where
 	show l = "N" ++ show (fromContainer (undefined :: size)) ++ show (fromListStatic l)
 
 -- has static size:
-instance (Container Int size) => UpBoundedCT (ListStatic a size) Int size 
-instance (Container Int size) => BoundedCT (ListStatic a size) Int (N0,size)
+--instance (Container Int size) => UpBoundedCT (ListStatic a size) Int size 
+instance (Container Int max) => BoundedCT (ListStatic a (Succ max)) Int N0 max
 
 -- isomorphic to a list:
-instance (Container Int size) => ToListCT (ListStatic a size) a size where
+instance (Container Int max) => ToListCT (ListStatic a (Succ max)) a N0 max where
 	toListCT = fromListStatic
-instance (Container Int size) => FromListCT (ListStatic a size) a size where
+instance (Container Int max) => FromListCT (ListStatic a (Succ max)) a N0 max where
 	fromListCT = fromJust . listStatic
 	--fromListCT = ListStatic
-instance (Container a size) => ListCT (ListStatic a size) a size where
+instance (Container Int max) => ListCT (ListStatic a (Succ max)) a N0 max where
 	get n l = toListCT l !! fromContainer n
 
 -- isomorphic to a function:

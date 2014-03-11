@@ -9,25 +9,13 @@ import Data.Reflection
 import Data.Maybe(fromJust)
 
 
--- up bounded: 
-class UpBounded l i | l -> i where
-	upperBound :: l -> i
- -- ct
-class (Ix i, Container i size) => UpBoundedCT l i size | l -> size, l -> i where
---class (Card size) => UpBoundedCT l size i | l -> size, l -> i where
-
--- down bounded: 
-class DownBounded l i | l -> i where
-	lowerBound :: l -> i
- -- ct
-class (Ix i, Container i size) => DownBoundedCT l i size | l -> size, l -> i where
---class (Reifies size Int) => UpBoundedCT l size i | l -> size, l -> i where
-
 -- has upper and lower boundaries:
 class BoundedCont l i | l -> i where
 	bounds :: l -> (i,i)
 
-class (Ix i, Container (i,i) bounds ) => BoundedCT l i bounds | l -> bounds, l -> i
+class (Ix i, Container i min, Container i max) => BoundedCT l i min max | l -> min, l -> max, l -> i
+
+
 
 -- homomorphism: (x -> y) |-->  f
 class FromFunction f x y | f -> x, f -> y where
@@ -37,14 +25,20 @@ class FromFunction f x y | f -> x, f -> y where
 class ToFunction f x y | f -> x, f -> y where
 	toFunction :: f -> x -> y
 
-class (Container Int size) => ToListCT l a size | l -> a, l -> size where
+
+
+class (BoundedCT l Int min max) => ToListCT l a min max | l -> a, l -> min, l -> max where
 	toListCT :: l -> [a]
 
-class (Container Int size) => FromListCT l a size | l -> a, l -> size where
+class (BoundedCT l Int min max) => FromListCT l a min max | l -> a, l -> min, l -> max where
 	fromListCT :: [a] -> l
 
-class ListCT l a size | l -> a, l -> size where	
-	get :: (LessThan n size) => n -> l -> a
+class (BoundedCT l Int min max) => ListCT l a min max | l -> a, l -> min, l -> max where	
+	get :: (InBounds min max n) => n -> l -> a
+
+
+class (LessOrEqual min n, LessOrEqual n max, Container Int min, Container Int max, Container Int n) => InBounds min max n
+instance (LessOrEqual min n, LessOrEqual n max) => InBounds min max n
 
 
 -- Make ListCTs instances of Ix
@@ -57,14 +51,14 @@ instance (ToListCT l a size) => ListCT l a size where
 
 
 -- these are just shortcuts:
-class (Ix ii, Ix i, FromListCT ii i dim, ToListCT ii i dim, ListCT ii i dim) =>
-	MultiIndex dim ii i | ii -> dim, ii -> i
+class (Ix ii, Ix i, FromListCT ii i min max, ToListCT ii i min max, ListCT ii i min max) =>
+	MultiIndex min max ii i | ii -> min, ii -> max, ii -> i
 
-class (BoundedCT t ii bounds, MultiIndex dim ii i, ToFunction t ii a, FromFunction t ii a) =>
-	TensorClass dim t ii i a bounds | t -> ii, t -> a, t -> bounds
+class (BoundedCT t ii min max, MultiIndex minDim maxDim ii i, ToFunction t ii a, FromFunction t ii a) =>
+	TensorClass minDim maxDim t ii i a min max | t -> ii, t -> a, t -> minDim, t -> maxDim, t -> min, t -> max
 
-class (TensorClass N2 m ii i a bounds) =>
-	MatrixClass m ii i a bounds
+class (TensorClass minDim (Succ minDim) m ii i y min max) =>
+	MatrixClass m minDim ii i y min max
 
 --instance BoundedCT c (min,max) i => (DownBoundedCT c min i) where
 --instance (DownBoundedCT c min i, UpBoundedCT c max i) => BoundedCT c (min,max) i where

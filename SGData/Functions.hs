@@ -6,29 +6,30 @@ import SGData.Classes
 import SGCard
 import Data.Array
 import SGData.ListStatic
+import SGData.Tuple
 --import Data.Foldable
 
 
 -- | work with fixed size lists:
 
-consCT :: (Container Int size, FromListCT l' a (Succ size), ToListCT l a size) => a -> l -> l'
+consCT :: (FromListCT l' a min (Succ max), ToListCT l a min max) => a -> l -> l'
 consCT x list = fromListCT $ x:(toListCT list)
 
 
-insertCT :: (LessThan n (Succ size), FromListCT l' a (Succ size), ToListCT l a size) => n -> a -> l -> l'
+insertCT :: (InBounds min (Succ max) n, FromListCT l' a min (Succ max), ToListCT l a min max) => n -> a -> l -> l'
 insertCT n x = fromListCT . insert x . toListCT
 	where
 		insert :: a -> [a] -> [a]
 		insert x l = take i l ++ [x] ++ drop i l
 		i = fromContainer n
 
-zipWithCT :: (FromListCT lr c size, ToListCT l a size,ToListCT r b size) =>(a -> b -> c) -> l -> r -> lr 
+zipWithCT :: (FromListCT lr c min max, ToListCT l a min max, ToListCT r b min max) =>(a -> b -> c) -> l -> r -> lr 
 zipWithCT f l r = fromListCT $ zipWith f (toListCT l) (toListCT r)
 
-zipCT :: (FromListCT lr (a,b) size, ToListCT l a size,ToListCT r b size) => l -> r -> lr 
+zipCT :: (FromListCT lr (a,b) min max, ToListCT l a min max, ToListCT r b min max) => l -> r -> lr 
 zipCT = zipWithCT (,) --fromListCT $ (toListCT l) `zip` (toListCT r)
 
-foldlCT ::  ToListCT l b size => (a -> b -> a) -> a -> l -> a
+foldlCT ::  ToListCT l b min max => (a -> b -> a) -> a -> l -> a
 foldlCT f z l = foldl f z (toListCT l)
 
 {-
@@ -45,9 +46,36 @@ reifyMatrBounds :: Int -> Int -> Int -> Int -> (forall a b c d . (Container Int 
 reifyMatrBounds a b c d f = reify4 a b c d (\a b c d -> f (a,b) (c,d))
 
 -- |generic matrix constructor
-m :: (Ix i, Container i a, Container i b, Container i c, Container i d, MatrixClass m (i,i) i x ((a,b),(c,d))) => (a, b) -> (c, d) -> ((i,i) -> x) -> m
-m (a, b) (c, d) f = fromFunction f
+m :: (Ix i, MatrixClass m minDim (i,i) i x (a,b) (c,d)) => minDim -> (a, b) -> (c, d) -> ((i,i) -> x) -> m
+m minDim (a, b) (c, d) f = fromFunction f
 
+-- |
+-- TODO: Type-Check
+mFromList :: (
+		MatrBoundsContainer Int a b c d,
+		MatrixClass m minDim (Int, Int) Int y (a,b) (c,d)
+	)
+	=>
+	minDim -> (a,b) -> (c,d) -> [[y]] -> m
+mFromList minDim l r list = m minDim l r (f list)
+	where
+		f list (row,col) = list !! row !! col
+
+-- matrix:
+mMatrMul :: forall y l r res u v w minDim . (
+	Num y, -- LessThan N0 dim, LessThan N1 dim,
+	Container Int u, Container Int v, Container Int w,
+	MatrixClass l minDim (Int,Int) Int y (N0,N0) (u,v), 
+	MatrixClass r minDim (Int,Int) Int y (N0,N0) (v,w), 
+	MatrixClass res minDim (Int,Int) Int y (N0,N0) (u,w))
+	=>
+	l -> r -> res 
+mMatrMul f g = fromFunction $ res
+	where
+		res (irow,icol) = foldlCT (+) 0 $ --temp f g (iRow,iCol)
+			(zipWithCT (*)
+				(row irow f :: ListStatic y (Succ v))
+				(col icol g :: ListStatic y (Succ v)) :: ListStatic y (Succ v))
 
 
 -- work with functions (not necessarily bounded!) :
@@ -108,10 +136,19 @@ mRow :: (
 mRow = undefined
 -}
 
+{-
+mRow :: (
+	MatrixClass m minDim ii i y (minRow,minCol) (maxRow,maxCol),
+	FromListCT f' y min max)
+	=>
+	i -> f -> f'
+mRow = redDim n0
+-}
+
 -- extract rows/columns from a two dimensional indexable structure:
 row :: (
-	MultiIndex N2 ii i, --FromListCT ii i (Succ dim),
-	MultiIndex N1 ii' i, --ToListCT ii' i dim,
+	MultiIndex N0 N1 ii i, --FromListCT ii i (Succ dim),
+	MultiIndex N0 N0 ii' i, --ToListCT ii' i dim,
 	ToFunction f ii y,
 	FromFunction f' ii' y)
 	=>
@@ -119,8 +156,8 @@ row :: (
 row = redDim n0
 
 col :: (
-	MultiIndex N2 ii i, --FromListCT ii i (Succ dim),
-	MultiIndex N1 ii' i, --ToListCT ii' i dim,
+	MultiIndex N0 N1 ii i, --FromListCT ii i (Succ dim),
+	MultiIndex N0 N0 ii' i, --ToListCT ii' i dim,
 	ToFunction f ii y,
 	FromFunction f' ii' y)
 	=>
@@ -129,9 +166,9 @@ col = redDim n1
 
 -- extract orthonormal planes from a multi dimensionally indexable structure
 redDim :: (
-	LessThan n (Succ dim),
-	MultiIndex (Succ dim) ii i, --FromListCT ii i (Succ dim),
-	MultiIndex dim ii' i, --ToListCT ii' i dim,
+	InBounds minDim (Succ maxDim) n,
+	MultiIndex minDim (Succ maxDim) ii i, --FromListCT ii i (Succ dim),
+	MultiIndex minDim maxDim ii' i, --ToListCT ii' i dim,
 	ToFunction f ii y,
 	FromFunction f' ii' y)
 	=>

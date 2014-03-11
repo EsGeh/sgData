@@ -1,5 +1,5 @@
 -- | This module exports a matrix type as well as some functions to work with it
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables, UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 module SGData.Tensor where
 
 --import SGData.Card2
@@ -16,88 +16,48 @@ import Data.Reflection
 import Data.Proxy
 
 
--- matrix:
-
--- |
--- TODO: Type-Check
-mFromList :: (
-		MatrBoundsContainer Int a b c d,
-		MatrixClass m (Int, Int) Int y ((a,b), (c,d))
-	)
-	=>
-	(a,b) -> (c,d) -> [[y]] -> m
-mFromList l r list = m l r (f list)
-	where
-		f list (row,col) = list !! row !! col
-
-
-mMatrMul :: forall y l r res u v w . (
-	Num y, -- LessThan N0 dim, LessThan N1 dim,
-	Container Int u, Container Int v, Container Int w,
-	MatrixClass l (Int,Int) Int y ((N0,N0),(u,v)), 
-	MatrixClass r (Int,Int) Int y ((N0,N0),(v,w)), 
-	MatrixClass res (Int,Int) Int y ((N0,N0),(u,w)))
-	=>
-	l -> r -> res 
-mMatrMul f g = fromFunction $ res
-	where
-		res (irow,icol) = foldlCT (+) 0 $ --temp f g (iRow,iCol)
-			(zipWithCT (*)
-				(row irow f :: ListStatic y (Succ v))
-				(col icol g :: ListStatic y (Succ v)) :: ListStatic y (Succ v))
-
-newtype Tensor i a bounds = T { fromTensor :: Array i a }
+newtype Tensor i a minDim maxDim min max = T { fromTensor :: Array i a }
 	deriving( Show )
 
-{-
-instance Show (Tensor i a bounds) where
-	show t = 
--}
-
-instance (Ix i, Container (i,i) bounds) => FromFunction (Tensor i a bounds) i a where
+instance (Ix i, Container Int minDim, Container Int maxDim, Container i min, Container i max) => FromFunction (Tensor i a minDim maxDim min max) i a where
 	fromFunction f = T $ array bounds list --array bounds list
 		where
-			bounds = fromContainer (undefined :: bounds)
+			bounds = fromContainer (undefined :: (min,max))
 			list = [ (i, f i) | i <- ((range (minBound, (maxBound)))) ]
 			minBound = fst bounds
 			maxBound = snd bounds
 
-instance (Ix i, Container (i,i) bounds) => ToFunction (Tensor i a bounds) i a where
+instance (Ix i, Container Int minDim, Container Int maxDim, Container i min, Container i max) => ToFunction (Tensor i a minDim maxDim min max) i a where
 	toFunction (T a) i = a ! i
 
-instance (Ix i, Container (i,i) bounds) => BoundedCT (Tensor i a bounds) i bounds
+instance (Ix i, Container Int minDim, Container Int maxDim, Container i min, Container i max) => BoundedCT (Tensor i a minDim maxDim min max) i min max
 
 -- just to make shure:
-instance (Container Int dim, MultiIndex dim ii i, Container (ii,ii) bounds) => TensorClass dim (Tensor ii a bounds) ii i a bounds
+instance (
+	Container Int minDim, Container Int maxDim,
+	MultiIndex minDim maxDim ii i, 
+	Container ii min,
+	Container ii max)
+	=> 
+	TensorClass minDim maxDim (Tensor ii a minDim maxDim min max) ii i a min max
 
-instance (MultiIndex N2 ii i, Container (ii,ii) bounds) => MatrixClass (Tensor ii a bounds) ii i a bounds
+instance (MultiIndex minDim (Succ minDim) ii i, Container ii min, Container ii max) => MatrixClass (Tensor ii a minDim (Succ minDim) min max) minDim ii i a min max
 
-
-mTensorInt :: (MatrBoundsContainer Int rowMin colMin rowMax colMax) => (rowMin,colMin) -> (rowMax, colMax) -> ((Int,Int) -> a) -> Matr Int a (rowMin,colMin) (rowMax, colMax)
-mTensorInt lower upper f = m lower upper f 
-
-
-type Matr i a lower upper = Tensor (i,i) a (lower,upper)
-type Vector i a lower upper = Tensor i a (lower, upper)
-
-
+mTensorInt :: (
+	MatrBoundsContainer Int rowMin colMin rowMax colMax
+	)
+	=>
+	(rowMin,colMin) -> (rowMax, colMax) -> ((Int,Int) -> a) -> Matr Int a N0 (rowMin,colMin) (rowMax, colMax)
+mTensorInt lower upper f = m n0 lower upper f 
 {-
-tensor :: forall i a bounds . (Ix i, Container (i,i) bounds) => bounds -> (i -> a) -> Tensor i a bounds
-tensor bounds f = fromFunction f
+mTensorInt :: (
+	MatrBoundsContainer Int rowMin colMin rowMax colMax
+	)
+	=>
+	minDim -> (rowMin,colMin) -> (rowMax, colMax) -> ((Int,Int) -> a) -> Matr Int a minDim (rowMin,colMin) (rowMax, colMax)
+mTensorInt minDim lower upper f = m minDim lower upper f 
 -}
 
 
---instance (Reifies config i) => Container i (Proxy config)
-
-{-
-testTensor :: Tensor (Int,Int) Int ((N0,N0),(N2,N2))
-testTensor = fromFunction (\(x,y) -> x+y) 
-
-testOneDim f = reify ((0,4) :: (Int,Int)) func -- this opens a context, in which bounds are statically fixed
-	where
-		func bounds = show $ 2 *| (tensor bounds f)
-
-testTwoDim f = reify (((0,0),(4,4)) :: ((Int,Int),(Int,Int))) func -- this opens a context, in which bounds are statically fixed
-	where
-		func bounds = show $ tensor bounds f
--}
+type Matr i a minDim lower upper = Tensor (i,i) a minDim (Succ minDim) lower upper
+type Vector i a minDim lower upper = Tensor i a minDim minDim lower upper
