@@ -43,7 +43,7 @@ class (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsC
 instance  (Container i a, Container i b, Container i c, Container i d)=> MatrBoundsContainer i a b c d
 
 reifyMatrBounds :: Int -> Int -> Int -> Int -> (forall a b c d . (Container Int a, Container Int b, Container Int c, Container Int d) => (a,b) -> (c,d) -> res) -> res
-reifyMatrBounds a b c d f = reify4 a b c d (\a b c d -> f (a,b) (c,d))
+reifyMatrBounds a b c d f = withCard4 a b c d (\a b c d -> f (a,b) (c,d))
 
 -- |generic matrix constructor
 m :: (Ix i, MatrixClass m minDim (i,i) i x (a,b) (c,d)) => minDim -> (a, b) -> (c, d) -> ((i,i) -> x) -> m
