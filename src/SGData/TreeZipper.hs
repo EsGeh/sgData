@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module SGData.TreeZipper(
 	-- * zipper
 	Direction(..), Path,
@@ -16,6 +17,7 @@ module SGData.TreeZipper(
 	up, down, left, right,
 	allDown,
 	-- ** apply functions depening on nodes, depending on their context in the tree
+	unfoldWithZipper,
 	applyZipperFOnFocusRec,
 	applyZipperFOnFocus,
 	applyZipperFOnAllChildren,
@@ -37,9 +39,18 @@ data TreeContext a = TCTop | TCDown {
 	parentCxt :: TreeContext a,
 	parentTree :: Tree a
 } deriving(Show)
+mapToChildIndex f context = context{ childIndex = f (childIndex context) }
+mapToParentCxt f context = context{ parentCxt = f (parentCxt context) }
+mapToParentTree f context = context{ parentTree = f (parentTree context) }
 
 -- | a zipper is a node plus some information about its context (its position in the tree)
 data Zipper a = Zipper { fromZipper :: (Node a, TreeContext a) } deriving(Show)
+mapToFocus f zipper =
+	let (focus, context) = fromZipper zipper
+	in Zipper (f focus, context)
+mapToContext f zipper =
+	let (focus, context) = fromZipper zipper
+	in Zipper (focus, f context)
 -- | retrieve the node from a zipper
 focus = fst . fromZipper 
 -- | retrieve the context from a zipper
@@ -104,21 +115,6 @@ down int zipper = do
 			parentCxt = context zipper,
 			parentTree = parentTree })
 
-
-{-
-	[] -> Nothing
-	children -> if int >= 0
-		then Just $ Zipper $ (
-			children !! int,
-			TCDown {
-				childIndex = int,
-				parentCxt = context zipper,
-				parentTree = parentTree })
-		else Nothing
-	where
-		parentTree = applyOnChildren (delFromIndex int) $ focus zipper
--}
-
 down' :: Int -> Zipper a -> Maybe (Zipper a)
 down' int zipper = case children (focus zipper) of
 	[] -> Nothing
@@ -140,18 +136,6 @@ allDown zipper = allDown 0
 			Nothing -> []
 			Just child -> child : allDown (index+1) 
 
-{-
-allDown' index children = case children $ focus zipper of
-	[] -> []
-
-
---foldl conc [] $ take (length $ children $ focus zipper) [0..]
-	where
-		conc l index = case down index zipper of
-			Nothing -> l
-			Just child -> l ++ [child]
--}
-
 up :: Zipper a -> Maybe (Zipper a)
 up zipper = case context zipper of
 	TCTop -> Nothing
@@ -168,22 +152,69 @@ right zipper = case context zipper of
 --upRec z = maybe z up $ upRec z
 asLongAsPossible :: Direction -> Zipper a -> Zipper a
 asLongAsPossible dir z = maybe z (asLongAsPossible dir) $ moveZipper dir z 
-{-asLongAsPossible dir z = case (moveZipper dir z) of
-	Nothing -> z
-	Just next -> asLongAsPossible dir next -}
 
--- | 'applyZipperFOnFocusRec f zipper' recursively applies f to the whole subtree of the node the zipper points to
+
+{- |> unfoldWithZipper f startVal
+
+creates a tree using f, whereas the result may depend on branches which have been calculated already.
+Branches are created top down from left to right.
+If they have not, the value of the zipper will be Nothing.
+-}
+unfoldWithZipper :: forall param a . (param -> Zipper (Maybe a) -> (a,[param])) -> param -> Tree a
+unfoldWithZipper f params =
+	fmap fromJust $
+	unfoldWithZipper' f params $
+	(zipperTop $ blankInfiniteTree)
+	where
+		blankInfiniteTree = unfoldTree (const (Nothing, repeat Nothing)) Nothing
+
+unfoldWithZipper' :: forall param a . (param -> Zipper (Maybe a) -> (a,[param])) -> param -> Zipper (Maybe a) -> Tree (Maybe a)
+unfoldWithZipper' f params zipper =
+	let 
+		(val, subParams) = f params zipper :: (a, [param])
+		listSubTrees = foldl conc [] $ subParams
+	in
+		node (Just val) listSubTrees
+	where
+		conc :: [Tree (Maybe a)] -> param -> [Tree (Maybe a)]
+		conc list subParam = list ++ [unfoldWithZipper' f subParam subZipper]
+			where
+				subZipper = 
+					mapToContext calcCtxt $
+					fromJust $
+					down currentIndex $
+					zipper
+				calcCtxt :: TreeContext (Maybe a) -> TreeContext (Maybe a)
+				calcCtxt TCTop = TCTop
+				calcCtxt ctxt@TCDown{ parentTree = pT } =
+					ctxt{ parentTree = newParentTree }
+					where
+						newParentTree :: Tree (Maybe a)
+						newParentTree = flip applyOnChildren pT $ \children ->
+							list ++ drop (length list) children :: [Node (Maybe a)]
+				currentIndex = length list
+
+{- |> applyZipperFOnFocusRec f zipper
+
+recursively applies f to the whole subtree of the node the zipper points to
+-}
 applyZipperFOnFocusRec :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnFocusRec f zipper' = applyZipperFOnAllChildren (focus . applyZipperFOnFocusRec f) $ applyZipperFOnFocus f zipper'
 
--- | 'applyZipperFOnFocus f zipper' returns a new Zipper, where f has been applied to the node the zipper points to
+{- |> applyZipperFOnFocus f zipper
+
+returns a new Zipper, where f has been applied to the node the zipper points to
+-}
 applyZipperFOnFocus :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnFocus f zipper' = zipper (newTree,context)
 	where
 		newTree = f zipper'
 		(oldTree,context) = fromZipper zipper'
 
--- | 'applyZipperFOnFocus f zipper' returns a new Zipper where f has been applied to all children
+{- |> applyZipperFOnFocus f zipper
+
+returns a new Zipper where f has been applied to all children
+-}
 applyZipperFOnAllChildren :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnAllChildren f zipper = case ((down 0 zipper) ) of
 	Nothing -> zipper
@@ -200,10 +231,6 @@ applyZipperFOnRight f zipper = case (right $ newCurrent) of
 delFromIndex index list = take index list ++ (tail $ drop index list)
 addFromIndex index val list = take index list ++ [val] ++ drop index list
 
-{-
-applyZipperFOnTreeRec :: (Zipper a -> b) -> Tree a -> Tree b
-applyZipperFOnTreeRec f tree = f (zipperTop tree)
--}
 
 -- |a special kind of mapping over a tree, where the function sees a nodes context as well (a zipper is a subtree plus its context)
 mapZipperF :: (Zipper a -> b) -> Zipper a -> Tree b
@@ -211,4 +238,3 @@ mapZipperF f zipper = node (f zipper) $ map (mapZipperF f) $ allDown zipper
 
 testTree = node 0 [ node 1 [ leaf 1.0, leaf 1.1 ], node 2 [ leaf 2.0 ], node 3 []]
 simpleTree = node 0 [ leaf 1, leaf 2, leaf 3]
-

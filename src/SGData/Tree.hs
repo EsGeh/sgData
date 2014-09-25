@@ -34,6 +34,7 @@ data Node t = Node {
 	value :: t,
 	children :: [Node t]
 }
+	deriving (Eq)
 
 
 type Width = Int
