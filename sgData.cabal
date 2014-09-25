@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                sgData
-version:             1.1.1.0
+version:             1.1.2.0
 synopsis:            a haskell library providing a few useful data containers, e.g. a matrix class (optionally fixed size at compile time), and a Tree
 -- description:         
 -- license:             
@@ -27,4 +27,4 @@ test-suite TestTreeZipper
   type: exitcode-stdio-1.0
   hs-source-dirs: test, src
   main-is: Main.hs
-  build-depends: base, QuickCheck == 2.7.*, HTF
+  build-depends: base, mtl == 2.1.*, QuickCheck == 2.7.*, HTF

@@ -18,6 +18,7 @@ module SGData.TreeZipper(
 	allDown,
 	-- ** apply functions depening on nodes, depending on their context in the tree
 	unfoldWithZipper,
+	unfoldWithZipperM,
 	applyZipperFOnFocusRec,
 	applyZipperFOnFocus,
 	applyZipperFOnAllChildren,
@@ -28,8 +29,9 @@ module SGData.TreeZipper(
 
 import SGData.Tree
 import Data.Maybe
-
 import Data.List
+import Control.Monad
+import Control.Monad.Identity
 
 data Direction = Up | Down Int
 type Path = [Direction]
@@ -154,6 +156,7 @@ asLongAsPossible :: Direction -> Zipper a -> Zipper a
 asLongAsPossible dir z = maybe z (asLongAsPossible dir) $ moveZipper dir z 
 
 
+
 {- |> unfoldWithZipper f startVal
 
 creates a tree using f, whereas the result may depend on branches which have been calculated already.
@@ -162,22 +165,28 @@ If they have not, the value of the zipper will be Nothing.
 -}
 unfoldWithZipper :: forall param a . (param -> Zipper (Maybe a) -> (a,[param])) -> param -> Tree a
 unfoldWithZipper f params =
-	fmap fromJust $
-	unfoldWithZipper' f params $
-	(zipperTop $ blankInfiniteTree)
+	runIdentity $ unfoldWithZipperM (\p -> return . f p) params
+
+-- | monadic version of 'unfoldWithZipper'
+unfoldWithZipperM :: Monad m => (param -> Zipper (Maybe a) -> m (a,[param])) -> param -> m (Tree a)
+unfoldWithZipperM f params =
+	return . fmap fromJust 
+	=<<
+		(unfoldWithZipperM' f params $
+		(zipperTop $ blankInfiniteTree))
 	where
 		blankInfiniteTree = unfoldTree (const (Nothing, repeat Nothing)) Nothing
 
-unfoldWithZipper' :: forall param a . (param -> Zipper (Maybe a) -> (a,[param])) -> param -> Zipper (Maybe a) -> Tree (Maybe a)
-unfoldWithZipper' f params zipper =
-	let 
-		(val, subParams) = f params zipper :: (a, [param])
-		listSubTrees = foldl conc [] $ subParams
-	in
-		node (Just val) listSubTrees
+unfoldWithZipperM' :: forall m param a . Monad m => (param -> Zipper (Maybe a) -> m (a,[param])) -> param -> Zipper (Maybe a) -> m (Tree (Maybe a))
+unfoldWithZipperM' f params zipper = do
+	(val, subParams) <- f params zipper :: m (a, [param])
+	listSubTrees <- foldM conc [] $ subParams
+	return $ node (Just val) listSubTrees
 	where
-		conc :: [Tree (Maybe a)] -> param -> [Tree (Maybe a)]
-		conc list subParam = list ++ [unfoldWithZipper' f subParam subZipper]
+		conc :: [Tree (Maybe a)] -> param -> m [Tree (Maybe a)]
+		conc list subParam = do
+			nextTree <- unfoldWithZipperM' f subParam subZipper
+			return $ list ++ [nextTree]
 			where
 				subZipper = 
 					mapToContext calcCtxt $
@@ -200,6 +209,12 @@ recursively applies f to the whole subtree of the node the zipper points to
 -}
 applyZipperFOnFocusRec :: (Zipper a -> Node a) -> Zipper a -> Zipper a
 applyZipperFOnFocusRec f zipper' = applyZipperFOnAllChildren (focus . applyZipperFOnFocusRec f) $ applyZipperFOnFocus f zipper'
+
+{-
+-- |monadic version of 'applyZipperFOnFocusRec'
+applyZipperFOnFocusRecM :: Monad m => (Zipper a -> m (Node a)) -> Zipper a -> m (Zipper a)
+applyZipperFOnFocusRecM f zipper' = undefined
+-}
 
 {- |> applyZipperFOnFocus f zipper
 

@@ -4,16 +4,16 @@ module SGData.Tree(
 	Tree,
 	Node,
 	-- * pseudo constructors
-	leaf, node, unfoldTree,
+	leaf, node, unfoldTree, unfoldTreeM,
 	-- * getters
 	value,children,
 	-- * setters
 	-- ** manipulate the value of a node
 	applyOnValue,
 	-- ** manipulate the children of a node
-	addChild,delChildFromIndex,mapOverChildren,applyOnChildren,
+	addChild, delChildFromIndex, mapOverChildren, applyOnChildren,
 	-- * map functions over a tree:
-	mapNodeF
+	mapNodeF, mapNodeFM,
 	-- * serializations
 	--renderTree,
 	--pShow
@@ -59,6 +59,13 @@ unfoldTree f start = Node { value = v, children = map (unfoldTree f) c }
 	where
 		(v, c) = f start
 
+-- | monadic version of 'unfoldTree'
+unfoldTreeM :: Monad m => (param -> m (a, [param])) -> param -> m (Tree a)
+unfoldTreeM f start = do
+	(v, c) <- f start
+	newChildren <- mapM (unfoldTreeM f) c
+	return $ Node { value = v, children = newChildren }
+
 addChild :: Node t -> Node t -> Node t
 addChild child node = Node oldVal newChildren
 	where
@@ -88,6 +95,13 @@ instance Functor Node where
 -- |a special kind of mapping over a tree, where the function sees the whole subtree of each node
 mapNodeF :: (Node a -> b) -> Tree a -> Tree b
 mapNodeF f n = node (f n) (map (mapNodeF f) $ children n)
+
+-- |monadic version of 'mapNodeF'
+mapNodeFM :: Monad m => (Node a -> m b) -> Tree a -> m (Tree b)
+mapNodeFM f n = do
+	newValue <- f n
+	newChildren <- mapM (mapNodeFM f) $ children n
+	return $ node newValue newChildren
 
 {--
 instance Fold.Foldable Node where
