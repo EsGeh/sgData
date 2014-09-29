@@ -9,7 +9,9 @@ import SGData.Tree
 import SGData.TreeZipper
 
 import Control.Monad
-
+import Control.Monad.Identity
+import Data.Maybe
+import qualified Data.Foldable as Fold
 
 prop_zipper tree =
 	(focus $ zipperTop tree) == tree
@@ -25,10 +27,22 @@ prop_unfoldZipper =
 			0
 	)
 
+
+test_unfoldZipper =
+	putStrLn $ show $ unfoldWithZipper unfoldFunc ()
+
+-- test if it unfoldWithZipper works with infinite trees:
+prop_WithInfiniteTree =
+	(value $ unfoldWithZipper unfoldF ())
+	== 0
+	where
+		unfoldF _ _ = (0, repeat ())
+
 treePosition zipper = (depth zipper, index zipper)
 
 unfoldFunc _ zipper =
 	(treePosition zipper, replicate (5 - depth zipper) ())
+
 
 instance (Arbitrary a) => Arbitrary (Node a) where
 	arbitrary = sized tree'

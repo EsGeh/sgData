@@ -24,6 +24,7 @@ where
 --import qualified Text.TextBlock as T
 --import Text
 import Data.Ratio
+import Data.Monoid
 import qualified Data.Foldable as Fold
 
 
@@ -103,67 +104,18 @@ mapNodeFM f n = do
 	newChildren <- mapM (mapNodeFM f) $ children n
 	return $ node newValue newChildren
 
-{--
 instance Fold.Foldable Node where
-	foldMap toMonoid (Node params list)= 
---}
+	foldMap = foldMapTree
 
+foldMapTree :: Monoid m => (a -> m) -> Node a -> m
+foldMapTree toM n = toM (value n) `mappend` mconcat (map (foldMapTree toM) (children n))
 
 testTree = node 0 [ leaf 1, leaf 2, leaf 3 ]
 testTree2 = node 0 [ node 1 [leaf 1.1, leaf 1.2, leaf 1.3], leaf 2, leaf 3 ]
 testTree3 = node 0 [ leaf 1 , node 2 [leaf 1.1, leaf 1.2, leaf 1.3 ], leaf 3 ]
 
-{-
-renderTree :: Depth -> RenderMethod t TextBlock -> RenderMethod (Tree t) TextBlock
-renderTree maxDepth renderElement = if maxDepth <= 0
-	then renderNothing
-	else RenderMeth $ \size (Node params children) ->
-		(runRenderMeth renderThis) size (params,children)
-	where
-		renderNothing = RenderMeth $ \size val -> m2empty
-		--renderThis :: RenderMethod (t, [Tree t]) TextBlock
-		renderThis = ud
-			(div2ConstAndRest 1)
-			renderElement
-			renderChildren
-			 
-		--renderChildren :: RenderMethod [Tree t] TextBlock
-		renderChildren = horizontal combPStd
-			(repeat (renderTree (maxDepth-1) renderElement))
-		--renderChildren = horizontal (repeat force)
--}
 
-
--- |this method should give a nice text serialisation of the tree:
-{-pShow :: (Show t) => Int -> Width -> Tree t -> TextBlock 
-pShow maxDepth width (Node params children) = if maxDepth <= 0
-	then m2empty
-	else
-		(runRenderMeth $ divToLinesWE "..") (width,1) params === (runRenderMeth $ renderChildren) (width,10) (map (pShow (maxDepth-1) oneChildWidth) children)
-	where
-		oneChildWidth = floor $ fromIntegral width / fromIntegral (length children)
-		renderChildren = horizontal (repeat force)-}
-
-	
--- this method should give a nice text serialisation of the tree:
-{-pShow width (Node params list) =
-	(prettyFill width $ show params)
-		++ (if length list > 0 then "\n" else "")
-		++ subNodes
-			where
-				subNodes = if length list > 0 then unlines lines' else ""
-				lines' = [ concat (map (getLine currentLine) subNodes') | currentLine <- [0..(deepestSubNode-1)]]
-					 
-				deepestSubNode = maximum $ map length subNodes'
-				subNodes' = map (lines . pShow subWidth) list
-				getLine n lines 
-					| (n < length lines) = lines !! n
-					| otherwise = ""
-				prettyFill = Pretty.fill "[" "]" " " " " Pretty.MidJust
-				subWidth = floor $ (width%1) / ((length list) %1)
-				-}
-
--- |shows the tree in one line
+-- |shows the tree nicely, using multiple lines
 instance (Show t) => Show (Node t) where
 	show = showTree 0
 		where

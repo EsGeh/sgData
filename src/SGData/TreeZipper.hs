@@ -177,18 +177,20 @@ unfoldWithZipperM f params =
 	where
 		blankInfiniteTree = unfoldTree (const (Nothing, repeat Nothing)) Nothing
 
+
 unfoldWithZipperM' :: forall m param a . Monad m => (param -> Zipper (Maybe a) -> m (a,[param])) -> param -> Zipper (Maybe a) -> m (Tree (Maybe a))
 unfoldWithZipperM' f params zipper = do
 	(val, subParams) <- f params zipper :: m (a, [param])
-	listSubTrees <- foldM conc [] $ subParams
-	return $ node (Just val) listSubTrees
+	return . node (Just val) =<< calcSubTrees [] subParams
 	where
-		conc :: [Tree (Maybe a)] -> param -> m [Tree (Maybe a)]
-		conc list subParam = do
-			nextTree <- unfoldWithZipperM' f subParam subZipper
-			return $ list ++ [nextTree]
+		calcSubTrees :: [Tree (Maybe a)] -> [param] -> m [Tree (Maybe a)]
+		calcSubTrees _ [] = return []
+		calcSubTrees list (param:restParams) = do
+			unfoldFirst <- unfoldWithZipperM' f param subZipper
+			rec <- calcSubTrees (list++[unfoldFirst]) restParams
+			return $ unfoldFirst: rec
 			where
-				subZipper = 
+				subZipper =
 					mapToContext calcCtxt $
 					fromJust $
 					down currentIndex $
