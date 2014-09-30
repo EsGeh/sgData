@@ -8,12 +8,17 @@ module SGData.Tree(
 	-- * getters
 	value,children,
 	-- * setters
-	-- ** manipulate the value of a node
+	-- ** manipulate a node
 	applyOnValue,
+	applyOnChildren,
+	-- *** monadic manipulating of nodes
+	applyOnValueM,
+	applyOnChildrenM,
 	-- ** manipulate the children of a node
-	addChild, delChildFromIndex, mapOverChildren, applyOnChildren,
+	addChild, delChildFromIndex, mapOverChildren, 
 	-- * map functions over a tree:
-	mapNodeF, mapNodeFM,
+	mapNodeF,
+	mapNodeFM,
 	-- * serializations
 	--renderTree,
 	--pShow
@@ -25,6 +30,8 @@ where
 --import Text
 import Data.Ratio
 import Data.Monoid
+import Control.Monad
+import Control.Monad.Identity
 import qualified Data.Foldable as Fold
 
 
@@ -48,7 +55,11 @@ leaf :: t -> Node t
 leaf value = Node value []
 
 -- | apply function on the value of a node:
-applyOnValue f n = node (f $ value n) (children n)
+applyOnValue f n = runIdentity $ applyOnValueM (return . f) n
+
+applyOnValueM f n = do
+	newVal <- f $ value n
+	return $ node newVal (children n)
 
 -- | create a node that has children
 node :: t -> [Node t] -> Node t
@@ -78,14 +89,19 @@ delChildFromIndex node index = Node oldVal newChildren
 		oldVal = value node
 		newChildren = take index (children node) ++ drop (index+1) (children node)
 
+-- |mapOverChildren f node = applyOnChildren (map f) node
 mapOverChildren :: (Node t -> Node t) -> Node t -> Node t
-mapOverChildren f = applyOnChildren $ map f
+mapOverChildren = applyOnChildren . map
 
 applyOnChildren :: ([Node t] -> [Node t]) -> Node t -> Node t
-applyOnChildren f node = Node oldVal newChildren
-	where
-		oldVal = value node
-		newChildren = f $ children node
+applyOnChildren f node =
+	runIdentity $ applyOnChildrenM (return . f) node
+
+applyOnChildrenM :: Monad m => ([Node t] -> m [Node t]) -> Node t -> m (Node t)
+applyOnChildrenM f node = do
+	newChildren <- f $ children node
+	let val = value node
+	return $ Node val newChildren
 
 
 -- |this makes it possible to map over a tree:

@@ -16,15 +16,21 @@ module SGData.TreeZipper(
 	top, leftBottom,
 	up, down, left, right,
 	allDown,
-	-- ** apply functions depening on nodes, depending on their context in the tree
+	-- ** context dependent tree manipulations
 	unfoldWithZipper,
-	unfoldWithZipperM,
 	applyZipperFOnFocusRec,
 	applyZipperFOnFocus,
 	applyZipperFOnAllChildren,
 	applyZipperFOnRight,
+	-- ** monadic versions of context dependent tree manipulations
+	unfoldWithZipperM,
+	applyZipperFOnFocusRecM,
+	applyZipperFOnFocusM,
+	applyZipperFOnAllChildrenM,
+	applyZipperFOnRightM,
 
 	mapZipperF,
+	mapZipperFuncM,
 ) where
 
 import SGData.Tree
@@ -210,40 +216,58 @@ unfoldWithZipperM' f params zipper = do
 recursively applies f to the whole subtree of the node the zipper points to
 -}
 applyZipperFOnFocusRec :: (Zipper a -> Node a) -> Zipper a -> Zipper a
-applyZipperFOnFocusRec f zipper' = applyZipperFOnAllChildren (focus . applyZipperFOnFocusRec f) $ applyZipperFOnFocus f zipper'
+applyZipperFOnFocusRec f zip =
+	runIdentity $ applyZipperFOnFocusRecM (return . f) zip
 
-{-
 -- |monadic version of 'applyZipperFOnFocusRec'
 applyZipperFOnFocusRecM :: Monad m => (Zipper a -> m (Node a)) -> Zipper a -> m (Zipper a)
-applyZipperFOnFocusRecM f zipper' = undefined
--}
+applyZipperFOnFocusRecM f zipper' =
+	applyZipperFOnAllChildrenM (return . focus <=< applyZipperFOnFocusRecM f)
+	=<< applyZipperFOnFocusM f zipper'
 
 {- |> applyZipperFOnFocus f zipper
 
 returns a new Zipper, where f has been applied to the node the zipper points to
 -}
 applyZipperFOnFocus :: (Zipper a -> Node a) -> Zipper a -> Zipper a
-applyZipperFOnFocus f zipper' = zipper (newTree,context)
-	where
-		newTree = f zipper'
-		(oldTree,context) = fromZipper zipper'
+applyZipperFOnFocus f zip = runIdentity $ applyZipperFOnFocusM (return . f) zip
+
+{- |monadic version of 'applyZipperFOnFocus'
+-}
+applyZipperFOnFocusM :: Monad m => (Zipper a -> m (Node a)) -> Zipper a -> m (Zipper a)
+applyZipperFOnFocusM f zip = do
+	let
+		(oldTree,context) = fromZipper zip
+	newTree <- f zip
+	return $ zipper (newTree, context)
 
 {- |> applyZipperFOnFocus f zipper
 
 returns a new Zipper where f has been applied to all children
 -}
 applyZipperFOnAllChildren :: (Zipper a -> Node a) -> Zipper a -> Zipper a
-applyZipperFOnAllChildren f zipper = case ((down 0 zipper) ) of
-	Nothing -> zipper
-	Just firstChild -> fromJust $ up $ applyZipperFOnRight f firstChild
+applyZipperFOnAllChildren f zipper = 
+	runIdentity $ applyZipperFOnAllChildrenM (return . f) zipper
+
+-- |monadic version of 'applyZipperFOnAllChildren'
+applyZipperFOnAllChildrenM :: Monad m => (Zipper a -> m (Node a)) -> Zipper a -> m (Zipper a)
+applyZipperFOnAllChildrenM f zip =
+	case ((down 0 zip) ) of
+		Nothing -> return $ zip
+		Just firstChild -> return . fromJust . up =<< applyZipperFOnRightM f firstChild
+
 
 -- | 
 applyZipperFOnRight :: (Zipper a -> Node a) -> Zipper a -> Zipper a
-applyZipperFOnRight f zipper = case (right $ newCurrent) of
-	Nothing -> newCurrent
-	Just rightNeighbour -> applyZipperFOnRight f rightNeighbour
-	where
-		newCurrent = applyZipperFOnFocus f zipper
+applyZipperFOnRight f zipper = runIdentity $ applyZipperFOnRightM (return . f) zipper
+
+applyZipperFOnRightM :: Monad m => (Zipper a -> m (Node a)) -> Zipper a -> m (Zipper a)
+applyZipperFOnRightM f zipper = do
+	newChild <- applyZipperFOnFocusM f zipper
+	case (right $ newChild) of
+		Nothing -> return $ newChild
+		Just rightNeighbour -> applyZipperFOnRightM f rightNeighbour
+
 
 delFromIndex index list = take index list ++ (tail $ drop index list)
 addFromIndex index val list = take index list ++ [val] ++ drop index list
@@ -251,7 +275,14 @@ addFromIndex index val list = take index list ++ [val] ++ drop index list
 
 -- |a special kind of mapping over a tree, where the function sees a nodes context as well (a zipper is a subtree plus its context)
 mapZipperF :: (Zipper a -> b) -> Zipper a -> Tree b
-mapZipperF f zipper = node (f zipper) $ map (mapZipperF f) $ allDown zipper
+mapZipperF f = runIdentity . mapZipperFuncM (return . f)
+
+-- |monadic version of 'mapZipperF'
+mapZipperFuncM :: Monad m => (Zipper a -> m b) -> Zipper a -> m (Tree b)
+mapZipperFuncM f zipper = do
+	val <- f zipper
+	children <- mapM (mapZipperFuncM f) $ allDown zipper
+	return $ node val children
 
 testTree = node 0 [ node 1 [ leaf 1.0, leaf 1.1 ], node 2 [ leaf 2.0 ], node 3 []]
 simpleTree = node 0 [ leaf 1, leaf 2, leaf 3]
