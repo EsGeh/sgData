@@ -19,9 +19,9 @@ prop_zipper tree =
 		_ = tree :: Tree Int
 
 prop_unfoldZipper =
-	unfoldWithZipper unfoldFunc ()
+	unfoldSeesZipper unfoldFunc ()
 	==
-	(mapZipperF treePosition $ zipperTop $
+	(mapSeesZipper treePosition $ zipperTop $
 		unfoldTree
 			(\param -> ((), replicate (5 - param) (param+1) ))
 			0
@@ -29,11 +29,11 @@ prop_unfoldZipper =
 
 
 test_unfoldZipper =
-	putStrLn $ show $ unfoldWithZipper unfoldFunc ()
+	putStrLn $ show $ unfoldSeesZipper unfoldFunc ()
 
--- test if it unfoldWithZipper works with infinite trees:
+-- test if it unfoldSeesZipper works with infinite trees:
 prop_WithInfiniteTree =
-	(value $ unfoldWithZipper unfoldF ())
+	(value $ unfoldSeesZipper unfoldF ())
 	== 0
 	where
 		unfoldF _ _ = (0, repeat ())

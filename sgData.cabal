@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                sgData
-version:             1.1.2.0
+version:             1.2.0.0
 synopsis:            a haskell library providing a few useful data containers, e.g. a matrix class (optionally fixed size at compile time), and a Tree
 -- description:         
 -- license:             
