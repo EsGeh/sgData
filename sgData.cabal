@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                sgData
-version:             1.1.0.1
+version:             1.1.2.0
 synopsis:            a haskell library providing a few useful data containers, e.g. a matrix class (optionally fixed size at compile time), and a Tree
 -- description:         
 -- license:             
@@ -13,10 +13,18 @@ maintainer:          SamuelGfroerer@googlemail.com
 category:            Math
 build-type:          Simple
 cabal-version:       >=1.8
+homepage:            
 
 library
   exposed-modules: SGData, SGData.Matrix, SGData.MatrixTS,
     SGData.Tree, SGData.TreeZipper,
     SGData.Vector2D
   -- other-modules:       
-  build-depends:       sgCard == 1.3.*, base ==4.*, mtl ==2.1.*, array ==0.4.* || ==0.5.*
+  build-depends:       sgCard == 1.3.*, base ==4.*, mtl ==2.1.*, array ==0.4.* || ==0.5.*, QuickCheck == 2.7.*, HTF
+  hs-source-dirs: src
+
+test-suite TestTreeZipper
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, src
+  main-is: Main.hs
+  build-depends: base, mtl == 2.1.*, QuickCheck == 2.7.*, HTF
