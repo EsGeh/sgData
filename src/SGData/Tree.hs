@@ -3,35 +3,35 @@ module SGData.Tree(
 	-- * data types
 	Tree,
 	Node,
-	-- * pseudo constructors
-	leaf, node, unfoldTree, unfoldTreeM,
+	-- * apply functions to subelements
+	changeValue, changeChildren,
+	applyOnValue, applyOnChildren,
+	-- ** monadic
+	changeValueM, changeChildrenM,
+	applyOnValueM, applyOnChildrenM,
+	{-
+	-- ** manipulate the children of a node
+	addChild, delChildFromIndex, mapOverChildren, mapOverChildrenM,
+	-}
+	-- * create single nodes
+	leaf, node,
+	-- * create trees
+	unfoldTree, unfoldTreeM,
 	-- * getters
 	value,children,
-	-- * setters
-	-- ** manipulate a node
-	applyOnValue,
-	applyOnChildren,
-	-- *** monadic manipulating of nodes
-	applyOnValueM,
-	applyOnChildrenM,
-	-- ** manipulate the children of a node
-	addChild, delChildFromIndex, mapOverChildren, 
-	-- * map functions over a tree:
-	mapNodeF,
-	mapNodeFM,
-	-- * serializations
-	--renderTree,
-	--pShow
-
+	-- * map functions over a tree
+	mapSeesNode, mapSeesNodeM,
+	updateNodes, updateNodesM,
+	updateNodesTopDown, updateNodesTopDownM
 )
 where
 
 --import qualified Text.TextBlock as T
 --import Text
+import SGData.Util
 import Data.Ratio
 import Data.Monoid
 import Control.Monad
-import Control.Monad.Identity
 import qualified Data.Foldable as Fold
 
 
@@ -48,28 +48,20 @@ data Node t = Node {
 type Width = Int
 type Depth = Int
 
-{-- node :: t -> [t] -> Node t
-node value sublist = Node value (map node --}
+------------------------------------------------------------------------------
+-- * pseudo constructors
 -- | create a leaf from a value
-leaf :: t -> Node t 
+leaf :: a -> Node a
 leaf value = Node value []
 
--- | apply function on the value of a node:
-applyOnValue f n = runIdentity $ applyOnValueM (return . f) n
-
-applyOnValueM f n = do
-	newVal <- f $ value n
-	return $ node newVal (children n)
-
 -- | create a node that has children
-node :: t -> [Node t] -> Node t
+node :: a -> [Node a] -> Node a
 node val list = Node val list
 
 -- | create a tree from an unfold function
-unfoldTree :: (a -> (t,[a])) -> a -> Tree t
-unfoldTree f start = Node { value = v, children = map (unfoldTree f) c }
-	where
-		(v, c) = f start
+unfoldTree :: (param -> (a, [param])) -> param -> Tree a
+unfoldTree =
+	nonMonadic unfoldTreeM
 
 -- | monadic version of 'unfoldTree'
 unfoldTreeM :: Monad m => (param -> m (a, [param])) -> param -> m (Tree a)
@@ -78,47 +70,90 @@ unfoldTreeM f start = do
 	newChildren <- mapM (unfoldTreeM f) c
 	return $ Node { value = v, children = newChildren }
 
-addChild :: Node t -> Node t -> Node t
-addChild child node = Node oldVal newChildren
-	where
-		oldVal = value node
-		newChildren = child : (children node)
-delChildFromIndex :: Node t -> Int -> Node t
-delChildFromIndex node index = Node oldVal newChildren
-	where
-		oldVal = value node
-		newChildren = take index (children node) ++ drop (index+1) (children node)
+------------------------------------------------------------------------------
+-- * setters
+-- ** manipulate a node
 
--- |mapOverChildren f node = applyOnChildren (map f) node
-mapOverChildren :: (Node t -> Node t) -> Node t -> Node t
-mapOverChildren = applyOnChildren . map
+changeValue = 
+	nonMonadic changeValueM
 
-applyOnChildren :: ([Node t] -> [Node t]) -> Node t -> Node t
-applyOnChildren f node =
-	runIdentity $ applyOnChildrenM (return . f) node
+changeChildren = 
+	nonMonadic changeChildrenM
+
+changeValueM f n = do
+	newVal <- f n
+	return $ node newVal (children n)
+
+changeChildrenM f n = do
+	newC <- f n
+	return $ node (value n) $ newC
+
+-- | apply function on the value of a node:
+applyOnValue =
+	nonMonadic applyOnValueM
+
+-- | apply function on the children of a node:
+applyOnChildren :: ([Node a] -> [Node a]) -> Node a -> Node a
+applyOnChildren =
+	nonMonadic applyOnChildrenM
+
+applyOnValueM f =
+	changeValueM (f . value)
 
 applyOnChildrenM :: Monad m => ([Node t] -> m [Node t]) -> Node t -> m (Node t)
-applyOnChildrenM f node = do
-	newChildren <- f $ children node
-	let val = value node
-	return $ Node val newChildren
+applyOnChildrenM f =
+	changeChildrenM (f . children)
 
+------------------------------------------------------------------------------
+-- ** manipulate the children of a node
+addChild newChild = applyOnChildren (newChild:)
+delChildFromIndex index = applyOnChildren $ \childs -> take index childs ++ drop (index+1) childs
+
+-- |mapOverChildren f node = applyOnChildren (map f) node
+mapOverChildren :: (Node a -> Node a) -> Node a -> Node a
+mapOverChildren =
+	nonMonadic mapOverChildrenM
+	--applyOnChildren . map
+
+mapOverChildrenM :: Monad m => (Node a -> m (Node a)) -> Node a -> m (Node a)
+mapOverChildrenM = applyOnChildrenM . mapM
+
+------------------------------------------------------------------------------
+-- * map functions over a tree (bottom up is the default)
+-- |a special kind of mapping over a tree, where the function sees the whole subtree of each node
+mapSeesNode :: (Node a -> b) -> Tree a -> Tree b
+mapSeesNode = 
+	nonMonadic mapSeesNodeM
+
+-- |monadic version of 'mapNodeF'
+mapSeesNodeM :: Monad m => (Node a -> m b) -> Tree a -> m (Tree b)
+mapSeesNodeM f n = do
+	newValue <- f n
+	newChildren <- mapM (mapSeesNodeM f) $ children n
+	return $ node newValue newChildren
+
+updateNodes :: (Node a -> Node a) -> Tree a -> Tree a
+updateNodes =
+	nonMonadic updateNodesM
+
+updateNodesM :: Monad m => (Node a -> m (Node a)) -> Tree a -> m (Tree a)
+updateNodesM f tree = do
+	newTree <- mapOverChildrenM (updateNodesM f) tree
+	f newTree
+
+updateNodesTopDown :: (Node a -> Node a) -> Tree a -> Tree a
+updateNodesTopDown =
+	nonMonadic updateNodesTopDownM
+
+updateNodesTopDownM :: Monad m => (Node a -> m (Node a)) -> Tree a -> m (Tree a)
+updateNodesTopDownM f tree = do
+	newTree <- f tree
+	mapOverChildrenM (updateNodesTopDownM f) newTree
 
 -- |this makes it possible to map over a tree:
 instance Functor Node where
 	fmap f (Node value []) = leaf (f value)
 	fmap f (Node params (children)) = Node (f params) (map (fmap f) children)
-
--- |a special kind of mapping over a tree, where the function sees the whole subtree of each node
-mapNodeF :: (Node a -> b) -> Tree a -> Tree b
-mapNodeF f n = node (f n) (map (mapNodeF f) $ children n)
-
--- |monadic version of 'mapNodeF'
-mapNodeFM :: Monad m => (Node a -> m b) -> Tree a -> m (Tree b)
-mapNodeFM f n = do
-	newValue <- f n
-	newChildren <- mapM (mapNodeFM f) $ children n
-	return $ node newValue newChildren
 
 instance Fold.Foldable Node where
 	foldMap = foldMapTree
